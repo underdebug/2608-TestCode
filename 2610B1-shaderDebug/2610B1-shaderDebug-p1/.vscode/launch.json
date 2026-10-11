@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GDB",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/test",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "preLaunchTask": "cmake",
+            "internalConsoleOptions": "openOnSessionStart",
+            "console": "internalConsole",
+            "redirectOutput": true
+        },
+        {
+            "name": "CUDA-GDB",
+            "type": "cuda-gdb",
+            "preLaunchTask": "cmake",
+            "request": "launch",
+            "program": "${workspaceFolder}/test",
+            "cwd": "${workspaceFolder}",
+            "internalConsoleOptions": "openOnSessionStart",
+            "console": "internalConsole"
+        }
+    ]
+}
