@@ -228,11 +228,14 @@ async function memCppCpp(session) {
     LOG && log('memCppCpp', expr);
 
     try {
-        await session.customRequest('evaluate', {
+        const response = await session.customRequest('evaluate', {
             expression: expr,
             context: 'repl',
             frameId: frameId
         });
+        if (response && response.result) {
+            vscode.debug.activeDebugConsole.appendLine(response.result);
+        }
     } catch (e) {
         log('Error memCppCpp', expr, e.message);
     }
@@ -260,11 +263,14 @@ async function memCppPython(session) {
     LOG && log('memCppPython', expr);
 
     try {
-        await session.customRequest('evaluate', {
+        const response = await session.customRequest('evaluate', {
             expression: expr,
             context: 'repl',
             frameId: frameId
         });
+        if (response && response.result) {
+            vscode.debug.activeDebugConsole.appendLine(response.result);
+        }
     } catch (e) {
         log('Error memCppPython', expr, e.message);
     }
