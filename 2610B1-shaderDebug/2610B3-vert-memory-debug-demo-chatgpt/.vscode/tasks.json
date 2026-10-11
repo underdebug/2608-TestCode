@@ -5,36 +5,17 @@
             "label": "CMake: configure",
             "type": "process",
             "command": "cmake",
-            "args": [
-                "-S",
-                "${workspaceFolder}",
-                "-B",
-                "${workspaceFolder}/build",
-                "-DCMAKE_BUILD_TYPE=Debug"
-            ],
+            "args": ["-S", "${workspaceFolder}", "-B", "${workspaceFolder}/build", "-DCMAKE_BUILD_TYPE=Debug"],
             "problemMatcher": []
         },
         {
             "label": "CMake: build",
             "type": "process",
             "command": "cmake",
-            "args": [
-                "--build",
-                "${workspaceFolder}/build",
-                "--config",
-                "Debug",
-                "--parallel"
-            ],
-            "dependsOn": [
-                "CMake: configure"
-            ],
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "problemMatcher": [
-                "$gcc"
-            ]
+            "args": ["--build", "${workspaceFolder}/build", "--config", "Debug", "--parallel"],
+            "dependsOn": ["CMake: configure"],
+            "group": {"kind": "build", "isDefault": true},
+            "problemMatcher": ["$gcc"]
         }
     ]
 }
