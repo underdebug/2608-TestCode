@@ -1,5 +1,5 @@
 {
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/../../../build/${workspaceFolderBasename}/compile_commands.json",
     "cmake.configureSettings": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": true
     },
@@ -11,5 +11,6 @@
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
         "editor.detectIndentation": false
-    }
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/../../../build/${workspaceFolderBasename}"
 }

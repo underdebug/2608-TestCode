@@ -21,3 +21,10 @@ target_compile_definitions(shader_cpp_demo PRIVATE CPU_SHADER=1)
 target_compile_options(shader_cpp_demo PRIVATE
     "$<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:-O0;-g3>"
 )
+
+# Managed by buildpath.py
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CUDA_SEPARABLE_COMPILATION ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+# End buildpath.py

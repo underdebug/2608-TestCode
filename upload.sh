@@ -1,7 +1,9 @@
 #!/bin/bash
+set -e
 cd "$(dirname "$0")" || exit 1
 source ../git.sh
 [ -n "$GH_TOKEN" ] || { echo "no GH_TOKEN"; exit 1; }
+[ -n "$GH_USER" ] || { echo "no GH_USER"; exit 1; }
 
 REPO="github.com/underdebug/2608B-TestCode.git"
 BRANCH="master"
@@ -9,24 +11,36 @@ URL="https://${GH_USER}:${GH_TOKEN}@${REPO}"
 MSG="${1:-update $(date '+%F %H:%M')}"
 
 # Initialize repo on first run only
-[ -d .git ] || {
+if [ ! -d .git ]; then
     git init
     git config user.name "$GH_USER"
     git config user.email "mingjie2026@gmail.com"
-}
+fi
 
 # Point HEAD at the branch without touching any commits
-# (safer than "checkout -B", which resets the branch pointer)
 git symbolic-ref HEAD "refs/heads/$BRANCH"
 
-# Pull remote content first, so "add -A" won't mark
-# remote-only files as deleted. Silenced for empty repos.
-git fetch "$URL" "$BRANCH" 2>/dev/null && \
+# Retrieve remote changes before staging local files
+if git fetch "$URL" "$BRANCH"; then
     git merge FETCH_HEAD --no-edit --allow-unrelated-histories
+else
+    echo "Fetch failed. Upload canceled to avoid overwriting remote history."
+    exit 1
+fi
 
-git add -A
-git commit -m "$MSG" || echo "no changes"
+# Stage source changes, but never stage build/ contents or deletions.
+# This protects existing tracked build files on GitHub across repeated uploads.
+git add -A -- . ':(exclude)build/**' ':(exclude,glob)**/build/**'
 
-# No -f: git will reject the push if the remote has
-# commits we don't have locally, instead of overwriting them
+if ! git diff --cached --quiet; then
+    git commit -m "$MSG"
+else
+    echo "no changes"
+fi
+
+# Only clean local build directories after a successful push.
 git push "$URL" "$BRANCH"
+
+echo "Cleaning local build directories..."
+find . -type d -name build -not -path './.git/*' -prune -print -exec rm -rf -- {} +
+echo "Upload complete; local build directories cleaned."
