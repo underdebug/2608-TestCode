@@ -1,5 +1,0 @@
-/home/roots/develop/2608B-TestCode-t/2610B1-shaderDebug/2610B2-Nurbs/build/CMakeFiles/test.dir
-/home/roots/develop/2608B-TestCode-t/2610B1-shaderDebug/2610B2-Nurbs/build/CMakeFiles/test_other_files.dir
-/home/roots/develop/2608B-TestCode-t/2610B1-shaderDebug/2610B2-Nurbs/build/CMakeFiles/nurbs_shaders.dir
-/home/roots/develop/2608B-TestCode-t/2610B1-shaderDebug/2610B2-Nurbs/build/CMakeFiles/edit_cache.dir
-/home/roots/develop/2608B-TestCode-t/2610B1-shaderDebug/2610B2-Nurbs/build/CMakeFiles/rebuild_cache.dir

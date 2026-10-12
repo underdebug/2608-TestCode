@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
+
 cd "$(dirname "$0")" || exit 1
 source ../git.sh
+
 [ -n "$GH_TOKEN" ] || { echo "no GH_TOKEN"; exit 1; }
 [ -n "$GH_USER" ] || { echo "no GH_USER"; exit 1; }
 
@@ -10,26 +12,41 @@ BRANCH="master"
 URL="https://${GH_USER}:${GH_TOKEN}@${REPO}"
 MSG="${1:-update $(date '+%F %H:%M')}"
 
-# Initialize repo on first run only
+# Initialize repository if needed
 if [ ! -d .git ]; then
     git init
     git config user.name "$GH_USER"
     git config user.email "mingjie2026@gmail.com"
 fi
 
-# Point HEAD at the branch without touching any commits
+# Select branch
 git symbolic-ref HEAD "refs/heads/$BRANCH"
 
-# Retrieve remote changes before staging local files
+# Retrieve remote changes
 if git fetch "$URL" "$BRANCH"; then
     git merge FETCH_HEAD --no-edit --allow-unrelated-histories
 else
-    echo "Fetch failed. Upload canceled to avoid overwriting remote history."
+    echo "Fetch failed. Upload canceled."
     exit 1
 fi
 
-# Stage source changes, excluding local build and Python cache directories.
-git add -A -- . ':(exclude)build/**' ':(exclude,glob)**/build/**' ':(exclude)__pycache__/**' ':(exclude,glob)**/__pycache__/**'
+# Ignore build and Python cache directories
+touch .gitignore
+for pattern in 'build/' '__pycache__/'; do
+    grep -Fxq "$pattern" .gitignore || echo "$pattern" >> .gitignore
+done
+
+# Remove previously tracked build/cache files from Git, keeping local files until push
+while IFS= read -r -d '' file; do
+    case "/$file/" in
+        */build/*|*/__pycache__/*)
+            git rm --cached -q -- "$file"
+            ;;
+    esac
+done < <(git ls-files -z)
+
+# Stage changes
+git add -A
 
 if ! git diff --cached --quiet; then
     git commit -m "$MSG"
@@ -37,9 +54,10 @@ else
     echo "no changes"
 fi
 
-# Only clean local build directories after a successful push.
 git push "$URL" "$BRANCH"
 
+# Clean local directories only after successful push
 echo "Cleaning local build and __pycache__ directories..."
-find . -type d \( -name build -o -name __pycache__ \) -not -path './.git/*' -prune -print -exec rm -rf -- {} +
-echo "Upload complete; local build and __pycache__ directories cleaned."
+find . -type d \( -name build -o -name __pycache__ \) \
+    -not -path './.git/*' -prune -print -exec rm -rf -- {} +
+echo "Upload complete; build and __pycache__ directories cleaned."

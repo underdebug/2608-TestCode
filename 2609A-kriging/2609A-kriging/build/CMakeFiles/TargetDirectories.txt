@@ -1,3 +1,0 @@
-/home/roots/develop/test/2609A-kriging/2609A-kriging/build/CMakeFiles/test.dir
-/home/roots/develop/test/2609A-kriging/2609A-kriging/build/CMakeFiles/edit_cache.dir
-/home/roots/develop/test/2609A-kriging/2609A-kriging/build/CMakeFiles/rebuild_cache.dir

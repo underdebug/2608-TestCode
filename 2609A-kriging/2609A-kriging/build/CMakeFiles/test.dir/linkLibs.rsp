@@ -1,1 +1,0 @@
- -lX11 -lGL -lGLU -lcuda -lcudart "/usr/lib/x86_64-linux-gnu/libglfw.so.3.3" "/usr/lib/x86_64-linux-gnu/libGLEW.so" -lcudadevrt -lcudart_static -lrt -lpthread -ldl 

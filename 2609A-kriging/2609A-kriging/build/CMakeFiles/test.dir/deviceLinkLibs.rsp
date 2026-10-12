@@ -1,1 +1,0 @@
- -lX11 -lGL -lGLU -lcuda -lcudart  -lcudadevrt -lcudart_static -lrt -lpthread -ldl 
