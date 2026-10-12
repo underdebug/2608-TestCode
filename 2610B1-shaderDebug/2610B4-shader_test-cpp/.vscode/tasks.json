@@ -1,0 +1,40 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build CPU shader demo",
+            "type": "process",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/main.py",
+                "--build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Build NURBS CPU demo",
+            "type": "process",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/main.py",
+                "--nurbs",
+                "--build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        }
+    ]
+}

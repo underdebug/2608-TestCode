@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "main: check shader",
+            "type": "process",
+            "command": "/usr/bin/python3",
+            "args": ["${workspaceFolder}/main.py", "--check"],
+            "options": {"cwd": "${workspaceFolder}"},
+            "problemMatcher": "$gcc",
+            "group": {"kind": "build", "isDefault": true},
+            "presentation": {"reveal": "always", "panel": "dedicated"}
+        }
+    ]
+}

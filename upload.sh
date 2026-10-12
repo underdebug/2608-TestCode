@@ -28,9 +28,8 @@ else
     exit 1
 fi
 
-# Stage source changes, but never stage build/ contents or deletions.
-# This protects existing tracked build files on GitHub across repeated uploads.
-git add -A -- . ':(exclude)build/**' ':(exclude,glob)**/build/**'
+# Stage source changes, excluding local build and Python cache directories.
+git add -A -- . ':(exclude)build/**' ':(exclude,glob)**/build/**' ':(exclude)__pycache__/**' ':(exclude,glob)**/__pycache__/**'
 
 if ! git diff --cached --quiet; then
     git commit -m "$MSG"
@@ -41,6 +40,6 @@ fi
 # Only clean local build directories after a successful push.
 git push "$URL" "$BRANCH"
 
-echo "Cleaning local build directories..."
-find . -type d -name build -not -path './.git/*' -prune -print -exec rm -rf -- {} +
-echo "Upload complete; local build directories cleaned."
+echo "Cleaning local build and __pycache__ directories..."
+find . -type d \( -name build -o -name __pycache__ \) -not -path './.git/*' -prune -print -exec rm -rf -- {} +
+echo "Upload complete; local build and __pycache__ directories cleaned."

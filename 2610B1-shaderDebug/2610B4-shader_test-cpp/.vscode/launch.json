@@ -1,0 +1,55 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "pp5: Python -> nurbs.vert (GDB)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/usr/bin/python3",
+            "args": [
+                "${workspaceFolder}/mem/pp5.py"
+            ],
+            "cwd": "${workspaceFolder}",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false,
+            "setupCommands": [
+                {
+                    "text": "set breakpoint pending on"
+                },
+                {
+                    "text": "set debuginfod enabled off"
+                }
+            ]
+        },
+        {
+            "name": "pp5: Debug nurbs_test.cpp + nurbs.vert",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/nurbs_cpu_demo",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "preLaunchTask": "Build NURBS CPU demo",
+            "internalConsoleOptions": "openOnSessionStart",
+            "stopAtEntry": true
+        },
+        {
+            "name": "pp5: Debug main.cpp + example.vert",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/shader_cpp_demo",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "preLaunchTask": "Build CPU shader demo",
+            "internalConsoleOptions": "openOnSessionStart",
+            "stopAtEntry": true
+        }
+    ]
+}

@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "main: Python -> nurbs.vert (GDB)",
+            "type": "cppdbg",
+            "request": "launch",
+            "preLaunchTask": "main: check shader",
+            "program": "/usr/bin/python3",
+            "args": ["${workspaceFolder}/main.py"],
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "stopAtEntry": false,
+            "externalConsole": false,
+            "setupCommands": [
+                {
+                    "text": "-gdb-set breakpoint pending on",
+                    "ignoreFailures": false
+                },
+                {
+                    "description": "Stop on the first shader call after ctypes loads the library",
+                    "text": "-interpreter-exec console \"tbreak shader\"",
+                    "ignoreFailures": false
+                }
+            ]
+        }
+    ]
+}
