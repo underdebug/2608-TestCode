@@ -37,7 +37,7 @@ development packages, and OpenMesh/Open3D libraries at ../../../3rdParty.
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --config Debug -j
-QT_QPA_PLATFORM=xcb ./test
+QT_QPA_PLATFORM=xcb ./build/test
 ```
 
 On a Wayland desktop, the application requires XWayland and the xcb Qt platform
@@ -55,10 +55,11 @@ Debug is the default for a fresh single-config build. GNU/Clang Debug builds use
 CMake retains the original CUDA language, architecture list, debug flags,
 third-party paths and legacy libraries. Qt Widgets, Quick and QuickControls2
 provide the UI, and Vulkan provides surface rendering. Quick3D and AUTOMOC are
-not required. The executable is generated in the project folder; .spv files are generated
+not required. The executable is generated in the build folder; .spv files are generated
 in shader/. Main.qml is embedded as qrc:/Main.qml.
 If needed, configure with -DCMAKE_PREFIX_PATH=/your/Qt/gcc_64.
-VS Code tasks use the local build directory; debugging requires C/C++ and gdb.
+VS Code tasks configure and build the local build directory; F5 launches
+build/test with CUDA-GDB and requires the NVIDIA Nsight Visual Studio Code Edition extension.
 
 Validation: configured and built against Qt 6.4.2 and Vulkan 1.3.275 with compiler
 warnings enabled; both shaders pass spirv-val. A standalone check linked the
