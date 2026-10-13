@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "NURBS: Debug shader (C++)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/nurbs",
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "internalConsoleOptions": "openOnSessionStart",
+            "stopAtEntry": false,
+            "console": "internalConsole",
+            "redirectOutput": true
+        }
+    ]
+}
