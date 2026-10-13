@@ -40,19 +40,6 @@ function log(...args) {
     );
 }
 
-function readConfig() {
-    const file = path.join(__dirname, 'config.json');
-
-    try {
-        const text = fs.readFileSync(file, 'utf8');
-        return JSON.parse(text);
-    } catch (e) {
-        log('Error readConfig readFileSync', e.message)
-        return { log: 1 };
-    }
-}
-
-
 async function printStack(session) {
     const editor = vscode.window.activeTextEditor;
     const line = editor.selection.active.line + 1;
@@ -766,9 +753,6 @@ async function activate(context) {
     if (await isOpeningProject(context)) {
         return;
     }
-
-    const config = readConfig();
-    LOG = config.log;
 
     LOG && log('disableCollapseIdenticalLines()');
     await disableCollapseIdenticalLines();
