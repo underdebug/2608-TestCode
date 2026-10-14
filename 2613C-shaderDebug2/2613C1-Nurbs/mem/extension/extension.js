@@ -127,7 +127,7 @@ async function isOpeningProject(context) {
     return await openProject(vscode.window.activeTextEditor);
 }
 
-async function setLauchJson() {
+async function setLaunchJson() {
     const cfg = vscode.workspace.getConfiguration('launch');
 
     const configurations = cfg.get('configurations', []);
@@ -266,7 +266,7 @@ async function memCppCpp(session) {
     const frameId = await getFrameId(session);
 
     let text;
-    if (editor.selection.isEmpty) { // TOCKEN
+    if (editor.selection.isEmpty) { // TOKEN
         const pos = editor.selection.active;
         const range = editor.document.getWordRangeAtPosition(pos);
         LOG && log('memCppCpp', 'pos', pos, 'range', range);
@@ -355,10 +355,10 @@ async function memPythonPython(session) {
     if (editor.selection.isEmpty) {
         const pos = editor.selection.active;
         const range = editor.document.getWordRangeAtPosition(pos);
-        if (range) { // TOCKEN
+        if (range) { // TOKEN
             const text = editor.document.getText(range);
-            LOG && log('memCppPython TOCKEN', 'range', JSON.stringify(range));
-            LOG && log('memCppPython TOCKEN', 'text', text);
+            LOG && log('memCppPython TOKEN', 'range', JSON.stringify(range));
+            LOG && log('memCppPython TOKEN', 'text', text);
 
             const inspectCode = [
                 'import numpy as np',
@@ -893,8 +893,8 @@ async function activate(context) {
     LOG && log('disableCollapseIdenticalLines()');
     await disableCollapseIdenticalLines();
 
-    LOG && log('setLauchJson()');
-    await setLauchJson();
+    LOG && log('setLaunchJson()');
+    await setLaunchJson();
 
     LOG && log('setSettingJson()');
     await setSettingJson();
