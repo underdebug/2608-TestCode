@@ -251,6 +251,9 @@ def cpu_stdpair(para):
     }
 
 def cpu_struct(para, Type=None, Size=None):
+    if Type is not None and Size is not None:
+        return cpu_memory(int(para.address), Type, Size)
+
     ftype = para.type.strip_typedefs()
 
     results = {}
@@ -288,7 +291,7 @@ def cpu_Eigen_Matrix(para, Type, Size):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     d = para['m_storage']['m_data']
     rows = int(ftype.template_argument(1))
@@ -329,7 +332,7 @@ def cpu_(para, Type=None, Size=None):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     # if LOG: PRINT('str(ftype)', str(ftype), 'ftype.code', ftype.code, 'Type', Type, 'Size', Size)
 
@@ -481,7 +484,7 @@ def gpu_(para, Type=None, Size=None):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()  
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     if ftype.code == gdb.TYPE_CODE_PTR: # 1
         if LOG: PRINT('str(ftype)', str(ftype))
@@ -536,7 +539,7 @@ def gpu(Name, Type=None, Size=None):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()  
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     if ftype.code != gdb.TYPE_CODE_PTR: # 1
         if LOG: PRINT('ftype.code != gdb.TYPE_CODE_PTR', ftype.code)
@@ -710,7 +713,7 @@ def kernel_(para, Type=None, Size=None, Step = 1):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()  
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     if LOG: PRINT('ftype', str(ftype), 'ftype.code', ftype.code)
 
@@ -804,6 +807,10 @@ def is_device_pointer(Name):
         return 2
 
 def mem_(Name, Type=None, Size=None, Step=1):
+    expression = Name.strip().rstrip(';').rstrip()
+    if expression.startswith('sizeof') and expression[len('sizeof'):].lstrip().startswith('('):
+        return int(gdb.parse_and_eval(expression))
+
     TYPE = {
         'uc':        'unsigned char',
         'c':         'char',
@@ -837,10 +844,6 @@ def mem_(Name, Type=None, Size=None, Step=1):
     return None
 
 def mem(Name, Type=None, Size=None, Step=1):
-    if LOG: PRINT(
-        '- - - - - - - - - - - - - - - - - - - - - - - - - - - '
-        '- - - - - - - - - - - - - - - - - - - - - - - - - - - ')
-
     if LOG:
         data = mem_(Name, Type, Size, Step)
         # np.save(f'{PATH}/data/{Name}.npy', data) 

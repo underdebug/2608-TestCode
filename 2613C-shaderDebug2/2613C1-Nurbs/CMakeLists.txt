@@ -88,7 +88,7 @@ foreach(SHADER nurbs.vert nurbs.frag)
     set(BINARY "${SHADER_DIRECTORY}/${SHADER}.spv")
     add_custom_command(
         OUTPUT "${BINARY}"
-        COMMAND "${GLSLANG_VALIDATOR}" -V -g -Od
+        COMMAND "${GLSLANG_VALIDATOR}" -V --glsl-version 450 -g -Od
                 "${SHADER_DIRECTORY}/${SHADER}" -o "${BINARY}"
         DEPENDS "${SHADER_DIRECTORY}/${SHADER}"
         VERBATIM

@@ -804,6 +804,10 @@ def is_device_pointer(Name):
         return 2
 
 def mem_(Name, Type=None, Size=None, Step=1):
+    expression = Name.strip().rstrip(';').rstrip()
+    if expression.startswith('sizeof') and expression[len('sizeof'):].lstrip().startswith('('):
+        return int(gdb.parse_and_eval(expression))
+    
     TYPE = {
         'uc':        'unsigned char',
         'c':         'char',

@@ -1,5 +1,4 @@
-#version 450
-
+// GLSL version 450 is selected by glslangValidator --glsl-version in CMake.
 layout(binding = 0, std140) uniform Surface
 {
     vec4 control[100]; // xyz in world coordinates, w is the rational weight
@@ -15,9 +14,17 @@ layout(push_constant) uniform View
 layout(location = 0) out vec3 color;
 
 const float knots[14] =
+#ifdef __cplusplus
+    {0, 0, 0, 0, 2.0f / 9, 3.0f / 9, 4.0f / 9, 5.0f / 9, 6.0f / 9, 7.0f / 9, 1, 1, 1, 1};
+#else
     float[](0, 0, 0, 0, 2.0 / 9, 3.0 / 9, 4.0 / 9, 5.0 / 9, 6.0 / 9, 7.0 / 9, 1, 1, 1, 1);
+#endif
 
+#ifdef __cplusplus
+void basis(float t, float (&b)[13])
+#else
 void basis(float t, out float b[13])
+#endif
 {
     for (int i = 0; i < 13; ++i)
         b[i] = (t >= knots[i] && t < knots[i + 1]) ? 1.0 : 0.0;

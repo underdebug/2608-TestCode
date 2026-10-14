@@ -29,6 +29,7 @@ const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
 
 LOG = 0; // 10/9 2026
+ALWAYS = 1;
 
 function log(...args) {
     const stack = new Error().stack;
@@ -204,26 +205,26 @@ async function setSettingJson() {
     }
 }
 
-async function memInit(session) {
+async function initialMem(session) {
     const editor = vscode.window.activeTextEditor;
     const frameId = await getFrameId(session);
-    LOG && log('memInit', 'getFrameId', frameId);
+    LOG && log('initialMem', 'getFrameId', frameId);
  
     let projectPath = '';
     const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
     if (folder) {
         projectPath = folder.uri.fsPath.replace(/\\/g, '/');
-        LOG && log('memInit', 'folder projectPath', projectPath);
+        LOG && log('initialMem', 'folder projectPath', projectPath);
     }else{
         projectPath = path.dirname(editor.document.uri.fsPath).replace(/\\/g, '/');
-        LOG && log('memInit', 'projectPath', projectPath);
+        LOG && log('initialMem', 'projectPath', projectPath);
     }
 
     const extensionPath = __dirname.replace(/\\/g, '/');
-    LOG && log('memInit', 'extensionPath', extensionPath);
+    LOG && log('initialMem', 'extensionPath', extensionPath);
 
     expr = `-exec python import sys; sys.path[:0]=["${projectPath}/mem","${extensionPath}"]; import importlib, mem; importlib.reload(mem); from mem import *;`;
-    LOG && log('memInit', expr);
+    LOG && log('initialMem', expr);
 
     try {
         await session.customRequest('evaluate', {
@@ -232,7 +233,7 @@ async function memInit(session) {
             frameId: frameId
         });
    } catch (e) {
-        log('Error memInit', expr, e.message);
+        log('Error initialMem', expr, e.message);
     }
 }
 
@@ -278,7 +279,17 @@ async function memCppCpp(session) {
         text = editor.document.getText(editor.selection);
     }
 
-    let expression = `value = mem(${JSON.stringify(text)}); print(value, ${JSON.stringify('<= ' + text)}, list(value.shape) if hasattr(value, 'shape') and value.shape else '', '|${line}|')`;
+    let expression;
+    const isSingleWord = /^\S+$/.test(text.trim());
+
+    if(isSingleWord){ // C++ Tocken
+        expression = `value = mem(${JSON.stringify(text)}); print(value, ${JSON.stringify('<= ' + text)}, list(value.shape) if hasattr(value, 'shape') and value.shape else '', '|${line}|')`; 
+    }
+    else{ // Python code
+        const lines = text.split(/\r?\n/).map(line => line.replace(/\s+$/, ''));
+        expression = lines.join(' \n');
+    }
+
     expression = JSON.stringify(expression);
 
     const expr = `-exec python exec(${expression})`;
@@ -454,6 +465,42 @@ function appExecutable(editor) {
     return path.join(appBuildDirectory(editor), programName);
 }
 
+let buildErrorTerminal;
+let buildErrorWriter;
+
+async function showBuildError(error) {
+    const output = [error.message, error.stdout, error.stderr]
+        .filter(Boolean).map(value => String(value).trimEnd()).join('\n');
+    if (vscode.debug.activeDebugSession) {
+        vscode.debug.activeDebugConsole.appendLine(output);
+        await vscode.commands.executeCommand('workbench.panel.repl.view.focus');
+    } else {
+        // F6 can fail before a debug session exists. A terminal keeps that
+        // compiler output visible even when there is no active Debug Console.
+        if (!buildErrorTerminal) {
+            buildErrorWriter = new vscode.EventEmitter();
+            buildErrorTerminal = vscode.window.createTerminal({
+                name: 'mem: Build errors',
+                pty: {
+                    onDidWrite: buildErrorWriter.event,
+                    open() {
+                        buildErrorWriter.fire(output.replace(/\r?\n/g, '\r\n') + '\r\n');
+                    },
+                    close() {
+                        buildErrorTerminal = undefined;
+                        buildErrorWriter.dispose();
+                        buildErrorWriter = undefined;
+                    }
+                }
+            });
+        } else {
+            buildErrorWriter.fire(output.replace(/\r?\n/g, '\r\n') + '\r\n');
+        }
+        buildErrorTerminal.show();
+    }
+    vscode.window.showErrorMessage('mem: Build failed. See the compiler output.');
+}
+
 async function buildCpp(editor) {
     try {
         if (!await vscode.workspace.saveAll()) return false;
@@ -471,11 +518,7 @@ async function buildCpp(editor) {
         if (stderr) vscode.debug.activeDebugConsole.appendLine(stderr.trimEnd());
         return true;
     } catch (e) {
-        log('Error buildCpp', e.message);
-        if (e.stdout) vscode.debug.activeDebugConsole.appendLine(e.stdout.trimEnd());
-        if (e.stderr) vscode.debug.activeDebugConsole.appendLine(e.stderr.trimEnd());
-        await vscode.commands.executeCommand('workbench.panel.repl.view.focus');
-        vscode.window.showErrorMessage('mem: Build failed. See the Debug Console for details.');
+        await showBuildError(e);
         return false;
     }
 }
@@ -498,11 +541,7 @@ async function buildShader(editor) {
         if (stderr) vscode.debug.activeDebugConsole.appendLine(stderr.trimEnd());
         return true;
     } catch (e) {
-        log('Error buildShader', e.message);
-        if (e.stdout) vscode.debug.activeDebugConsole.appendLine(e.stdout.trimEnd());
-        if (e.stderr) vscode.debug.activeDebugConsole.appendLine(e.stderr.trimEnd());
-        await vscode.commands.executeCommand('workbench.panel.repl.view.focus');
-        vscode.window.showErrorMessage('mem: Build failed. See the Debug Console for details.');
+        await showBuildError(e);
         return false;
     }
 }
@@ -534,11 +573,7 @@ async function buildKernel(editor, source = editor.document.uri.fsPath) {
         await run(['-G', '-g', ...objects, '-o', output]);
         return true;
     } catch (e) {
-        log('Error buildKernel', e.message);
-        if (e.stdout) vscode.debug.activeDebugConsole.appendLine(e.stdout.trimEnd());
-        if (e.stderr) vscode.debug.activeDebugConsole.appendLine(e.stderr.trimEnd());
-        await vscode.commands.executeCommand('workbench.panel.repl.view.focus');
-        vscode.window.showErrorMessage('mem: Build failed. See the Debug Console for details.');
+        await showBuildError(e);
         return false;
     }
 }
@@ -560,11 +595,7 @@ async function buildCpp(editor) {
         if (stderr) vscode.debug.activeDebugConsole.appendLine(stderr.trimEnd());
         return true;
     } catch (e) {
-        log('Error buildCpp', e.message);
-        if (e.stdout) vscode.debug.activeDebugConsole.appendLine(e.stdout.trimEnd());
-        if (e.stderr) vscode.debug.activeDebugConsole.appendLine(e.stderr.trimEnd());
-        await vscode.commands.executeCommand('workbench.panel.repl.view.focus');
-        vscode.window.showErrorMessage('mem: Build failed. See the Debug Console for details.');
+        await showBuildError(e);
         return false;
     }
 }
@@ -654,21 +685,29 @@ async function cmdMem(initializedSessions) {
     LOG && log('isPythonProgram', isPythonProgram);    
 
     if (!isPythonProgram) { // C++ program
-        if (!initializedSessions.has(session)) {
-            LOG && log('memInit(session) C++ program, initializedSessions');
-            await memInit(session);
-            initializedSessions.add(session);
+        if(!ALWAYS){
+            if (!initializedSessions.has(session)) {
+                LOG && log('initialMem(session) C++ program, initializedSessions');
+                await initialMem(session);
+                initializedSessions.add(session);
+            }
         }
 
         if (!isPythonFile) { // C++ program, C++ file
             LOG && log('memCppCpp(session) C++ program, C++ file')
-            await printStack(session)
-            await memCppCpp(session)
+            await printStack(session);
+            if(ALWAYS){
+                await initialMem(session);
+            }
+            await memCppCpp(session);
 
         } else { // C++ program, Python file
             LOG && log('memCppPython(session) C++ program, Python file')
-            await printStack(session)
-            await memCppPython(session)
+            await printStack(session);
+            if(ALWAYS){
+                await initialMem(session);
+            }
+            await memCppPython(session);
         }
         
     } else { // Python program
