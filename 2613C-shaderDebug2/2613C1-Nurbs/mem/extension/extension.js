@@ -578,28 +578,6 @@ async function buildKernel(editor, source = editor.document.uri.fsPath) {
     }
 }
 
-async function buildCpp(editor) {
-    try {
-        if (!await vscode.workspace.saveAll()) return false;
-        const filename = editor.document.uri.fsPath;
-        const source = filename;
-        const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-        const root = folder ? folder.uri.fsPath : path.dirname(filename);
-        await fs.promises.mkdir(appBuildDirectory(editor), { recursive: true });
-        const { stdout, stderr } = await execFileAsync(
-            process.env.CXX || 'g++',
-            ['-std=c++17', '-O0', '-g3', source, '-o', appExecutable(editor)],
-            { cwd: root, maxBuffer: 10 * 1024 * 1024 }
-        );
-        if (stdout) vscode.debug.activeDebugConsole.appendLine(stdout.trimEnd());
-        if (stderr) vscode.debug.activeDebugConsole.appendLine(stderr.trimEnd());
-        return true;
-    } catch (e) {
-        await showBuildError(e);
-        return false;
-    }
-}
-
 async function debugCpp(editor, debuggerType = 'cppdbg') {
     try {
         const programName = path.basename(editor.document.uri.fsPath).split('.')[0];
