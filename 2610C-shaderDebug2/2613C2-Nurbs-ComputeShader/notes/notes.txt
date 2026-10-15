@@ -1,0 +1,51 @@
+
+sudo apt update
+
+sudo apt install \
+    qt6-base-dev \
+    qt6-declarative-dev \
+    qt6-quick3d-dev \
+    qt6-shadertools-dev \
+    qml6-module-qtquick \
+    qml6-module-qtquick-window \
+    qml6-module-qtquick-controls \
+    qml6-module-qtquick-layouts \
+    qml6-module-qtquick-templates \
+    qml6-module-qtqml-workerscript
+
+sudo apt install qt6-shadertools-dev
+
+find /home/roots/.cache -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+
+Fn + ESC
+
+---------------------------------------------------------------
+delete .swp file in vscode
+vim ~/.vimrc
+set noswapfile
+
+---------------------------------------------------------------
+https://getreuer.info/posts/tvreg/index.html
+
+---------------------------------------------------------------
+python3 -m mem mem.py
+sudo du -xhd3 / | sort -h
+gio trash --empty
+
+Credit balance is too low
+unset ANTHROPIC_API_KEY
+echo "[$ANTHROPIC_API_KEY]"
+/login "Claude account with subscription"
+/status # /usage
+
+node --version
+npm --version
+sudo npm install -g @vscode/vsce
+~/.vscode/extensions
+~/.config/Code/User/keybindings.json
+Ctrl + Shift + P
+Reload Window
+Extension Development Host
+Extensions: Install from VSIX...
+
+---------------------------------------------------------------

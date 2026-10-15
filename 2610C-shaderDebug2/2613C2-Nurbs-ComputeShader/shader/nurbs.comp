@@ -1,0 +1,162 @@
+#version 450
+layout(local_size_x = 64) in;
+layout(binding = 0, std430) readonly buffer InputPoints
+{
+    vec4 inputPoint[256];
+} surface;
+layout(binding = 1, std430) buffer DisplayPoints
+{
+    vec4 position[];
+} points;
+
+layout(push_constant) uniform Calculation
+{
+    int phase;
+    int rows;
+    int columns;
+} calculation;
+
+// Storage: display vertices [0,43472), control [43472,43728),
+// first-direction interpolation results [43728,43984).
+const int controlOffset = 43472;
+const int intermediateOffset = 43728;
+
+// Clamped cubic knots; count=10 preserves the original demo knot vector.
+float knot(int index, int count)
+{
+    if (index <= 3)
+        return 0.0;
+    if (index >= count)
+        return 1.0;
+    return float(index - 2) / float(count - 1);
+}
+
+void basis(float t, int count, out float b[19])
+{
+    for (int i = 0; i < 19; ++i)
+        b[i] = (t >= knot(i, count) && t < knot(i + 1, count)) ? 1.0 : 0.0;
+
+    if (t >= 1.0)
+    {
+        b[count - 1] = 1.0;
+        return;
+    }
+
+    for (int d = 1; d <= 3; ++d)
+        for (int i = 0; i < 19 - d; ++i)
+        {
+            float a = knot(i + d, count) - knot(i, count), c = knot(i + d + 1, count) - knot(i + 1, count);
+            b[i] = (a > 0 ? (t - knot(i, count)) * b[i] / a : 0) +
+                   (c > 0 ? (knot(i + d + 1, count) - t) * b[i + 1] / c : 0);
+        }
+}
+
+vec3 evaluate(vec2 uv)
+{
+    float a[19], b[19];
+
+    basis(uv.x, calculation.rows, a);
+    basis(uv.y, calculation.columns, b);
+
+    vec3 p = vec3(0);
+    float denominator = 0;
+
+    for (int i = 0; i < calculation.rows; ++i)
+        for (int j = 0; j < calculation.columns; ++j)
+        {
+            vec4 cp = points.position[controlOffset + i * calculation.columns + j];
+            float w = a[i] * b[j] * cp.w;
+
+            p += cp.xyz * w;
+            denominator += w;
+        }
+
+    return p / denominator;
+}
+
+// Solve one input column/row with partial-pivot Gauss-Jordan elimination.
+// Each invocation owns its matrix and right-hand sides; no workgroup sharing.
+void interpolateLine(int line, bool secondDirection)
+{
+    int count = secondDirection ? calculation.columns : calculation.rows;
+    float matrix[256];
+    vec3 rhs[16];
+    for (int row = 0; row < count; ++row)
+    {
+        float weights[19];
+        basis(float(row) / float(count - 1), count, weights);
+        for (int col = 0; col < count; ++col)
+            matrix[row * 16 + col] = weights[col];
+        rhs[row] = secondDirection ?
+            points.position[intermediateOffset + line * calculation.columns + row].xyz :
+            surface.inputPoint[row * calculation.columns + line].xyz;
+    }
+    for (int col = 0; col < count; ++col)
+    {
+        int pivot = col;
+        for (int row = col + 1; row < count; ++row)
+            if (abs(matrix[row * 16 + col]) > abs(matrix[pivot * 16 + col]))
+                pivot = row;
+        for (int k = col; k < count; ++k)
+        {
+            float value = matrix[col * 16 + k];
+            matrix[col * 16 + k] = matrix[pivot * 16 + k];
+            matrix[pivot * 16 + k] = value;
+        }
+        vec3 value = rhs[col];
+        rhs[col] = rhs[pivot];
+        rhs[pivot] = value;
+        float divisor = matrix[col * 16 + col];
+        for (int k = col; k < count; ++k)
+            matrix[col * 16 + k] /= divisor;
+        rhs[col] /= divisor;
+        for (int row = 0; row < count; ++row)
+        {
+            if (row == col)
+                continue;
+            float factor = matrix[row * 16 + col];
+            for (int k = col; k < count; ++k)
+                matrix[row * 16 + k] -= factor * matrix[col * 16 + k];
+            rhs[row] -= factor * rhs[col];
+        }
+    }
+    for (int row = 0; row < count; ++row)
+    {
+        int index = secondDirection ? controlOffset + line * calculation.columns + row :
+                                      intermediateOffset + row * calculation.columns + line;
+        points.position[index] = vec4(rhs[row], 1);
+    }
+}
+
+void main()
+{
+    uint index = gl_GlobalInvocationID.x;
+    if (calculation.phase < 3)
+    {
+        if (index < uint(calculation.phase == 1 ? calculation.columns : calculation.rows))
+            interpolateLine(int(index), calculation.phase == 2);
+        return;
+    }
+    if (index >= 43472u)
+        return;
+    int mode = index < 40400u ? 0 : (index < 41936u ? 1 : 2);
+    int id = int(index) - (mode == 0 ? 0 : (mode == 1 ? 40400 : 41936));
+    vec3 p;
+    if (mode == 0)
+    {
+        int cell = id / 4, direction = (id % 4) / 2, endpoint = id % 2;
+        vec2 uv = vec2(float(cell / 100) / 100.0, float(cell % 100 + endpoint) / 100.0);
+        if (direction == 1)
+            uv = uv.yx;
+        p = evaluate(uv);
+    }
+    else
+    {
+        int point = id / 6, axis = (id % 6) / 2;
+        if (point >= calculation.rows * calculation.columns)
+            return;
+        p = mode == 1 ? surface.inputPoint[point].xyz : points.position[controlOffset + point].xyz;
+        p[axis] += ((id % 2) == 0 ? -1.0 : 1.0) * (mode == 1 ? 1.8 : 2.5);
+    }
+    points.position[index] = vec4(p, 1);
+}
