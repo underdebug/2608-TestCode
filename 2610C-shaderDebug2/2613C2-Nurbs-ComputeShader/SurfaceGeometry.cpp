@@ -1,4 +1,6 @@
 #include "SurfaceGeometry.h"
+#include <QEvent>
+#include <QVariant>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -157,6 +159,54 @@ static VkPipeline linePipeline(VkDevice device, VkRenderPass renderPass,
     vkDestroyShaderModule(device, frag, nullptr);
     check(result, "Create line pipeline");
     return pipeline;
+}
+
+void SurfaceGeometry::setNavigationControls(QObject *controls)
+{
+    navigationControls = controls;
+}
+
+void SurfaceGeometry::applyCameraControls()
+{
+    auto *root = navigationControls.data();
+    if (!root)
+        return;
+    spin = root->property("cameraSpin").toFloat();
+    tilt = root->property("cameraTilt").toFloat();
+    distance = root->property("cameraDistance").toFloat();
+    panX = root->property("cameraPanX").toFloat();
+    panY = root->property("cameraPanY").toFloat();
+    panZ = root->property("cameraPanZ").toFloat();
+    coordinate[0] = root->property("coordinateX").toFloat();
+    coordinate[1] = root->property("coordinateY").toFloat();
+    coordinate[2] = root->property("coordinateZ").toFloat();
+}
+
+void SurfaceGeometry::navigationChanged()
+{
+    if (auto *root = navigationControls.data())
+    {
+        QMetaObject::invokeMethod(root, "setCamera", Q_ARG(QVariant, QVariant(spin)),
+                                  Q_ARG(QVariant, QVariant(tilt)),
+                                  Q_ARG(QVariant, QVariant(distance)));
+        root->setProperty("cameraPanX", panX);
+        root->setProperty("cameraPanY", panY);
+        root->setProperty("cameraPanZ", panZ);
+        root->setProperty("coordinateX", coordinate[0]);
+        root->setProperty("coordinateY", coordinate[1]);
+        root->setProperty("coordinateZ", coordinate[2]);
+    }
+    VulkanWindow::navigationChanged();
+}
+
+bool SurfaceGeometry::event(QEvent *event)
+{
+    // Apply queued panel edits before mouse tools read or modify camera data.
+    if (prepareNavigation && (event->type() == QEvent::MouseMove ||
+        event->type() == QEvent::MouseButtonPress ||
+        event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::Wheel))
+        prepareNavigation();
+    return VulkanWindow::event(event);
 }
 
 SurfaceGeometry::SurfaceGeometry(QWindow *parent) : VulkanWindow(parent)

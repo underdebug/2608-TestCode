@@ -112,7 +112,8 @@ void main()
             p[axis] = 1;
             labelOffset = vec2(5, -5) + glyph[index] * vec2(1, -1);
         }
-        color = axis == 0 ? vec3(1,0.2,0.2) : (axis == 1 ? vec3(0.2,1,0.2) : vec3(0.3,0.5,1));
+        // X: red, Y: blue, Z: green (axis lines and labels).
+        color = axis == 0 ? vec3(1,0.2,0.2) : (axis == 1 ? vec3(0.3,0.5,1) : vec3(0.2,1,0.2));
         gl_Position = view.mvp * vec4(p, 1);
         vec2 viewportSize = vec2(view.viewportWidth, view.viewportHeight);
         if (gl_VertexIndex < 12)

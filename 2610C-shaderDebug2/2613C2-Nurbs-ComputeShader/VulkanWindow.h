@@ -3,7 +3,6 @@
 #include <array>
 #include "MouseTool.h"
 #include <QWindow>
-#include <functional>
 #include <memory>
 
 // Native Vulkan window: device, swapchain, camera, navigation, picking and rulers.
@@ -13,16 +12,21 @@ class VulkanWindow : public QWindow
     explicit VulkanWindow(QWindow *parent = nullptr);
     ~VulkanWindow() override;
 
-    float spin = 25, tilt = 55, distance = 450;
+    // Rotation in degrees: horizontal spin and vertical tilt (MouseRotate).
+    float spin = 25, tilt = 55;
+
+    // Zoom / view scale (MouseZoom): smaller distance makes the surface larger.
+    float distance = 450;
+
+    // Camera-space translation in world units: X/Y pan across the view (MousePan).
+    // Z compensates origin-depth changes (MouseAxis); it does not control zoom.
     float panX = 0, panY = 0, panZ = 0;
+    
+    // World-space axis origin / rotation pivot (MouseAxis).
     std::array<float, 3> coordinate{0, 0, 0};
 
-    std::function<void(qreal, qreal)> rotateCamera;
-    std::function<void(qreal, qreal)> panCamera;
-    std::function<void(qreal, qreal)> moveCoordinates;
-    std::function<void(qreal)> moveAxisDepth;
-    std::function<void(qreal, QPointF)> zoomCamera;
-    std::function<void(QPointF)> pickRotationCenter;
+    // Called after mouse tools change the stored camera or origin.
+    virtual void navigationChanged() { requestUpdate(); }
 
     void render();
     // Left, right, bottom, top in camera-plane world units.

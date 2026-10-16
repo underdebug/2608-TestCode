@@ -25,14 +25,10 @@ Rectangle {
 
     signal settingsChanged
 
-    function rotateCamera(spinDelta, tiltDelta) {
-        spin.value = ((spin.value + spinDelta + 180) % 360 + 360) % 360 - 180;
-        tilt.value = Math.max(tilt.from, Math.min(tilt.to, tilt.value + tiltDelta));
-    }
-
-    function zoomCamera(steps) {
-        distance.value = Math.max(distance.from,
-                                 Math.min(distance.to, distance.value * Math.pow(0.85, steps)));
+    function setCamera(spinValue, tiltValue, distanceValue) {
+        spin.value = spinValue;
+        tilt.value = tiltValue;
+        distance.value = distanceValue;
     }
 
     onSurfaceStyleChanged: settingsChanged()

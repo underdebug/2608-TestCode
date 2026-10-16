@@ -2,6 +2,8 @@
 #include "VulkanWindow.h"
 #include <array>
 #include <vector>
+#include <QPointer>
+#include <functional>
 
 // NURBS input data, compute interpolation, GPU buffers and surface shader drawing.
 class SurfaceGeometry : public VulkanWindow
@@ -14,9 +16,15 @@ class SurfaceGeometry : public VulkanWindow
     using InputPoint = std::array<float, 4>; // x, y, z, w (currently w must be 1).
     // Row-major: points[row * columns + column]; cubic grids support 4..16 per axis.
     void setInputPoints(const std::vector<InputPoint> &points, int rows, int columns);
+    void setNavigationControls(QObject *controls);
+    void applyCameraControls();
+    void navigationChanged() override;
+    std::function<void()> prepareNavigation;
+
     bool gridVisible = true, pointsVisible = true, controlPointsVisible = true;
 
   protected:
+    bool event(QEvent *event) override;
     void initializeScene(VkPhysicalDevice physical, VkDevice device) override;
     void releaseScene() override;
     void createScenePipeline(VkRenderPass renderPass) override;
@@ -25,6 +33,7 @@ class SurfaceGeometry : public VulkanWindow
     void recordScene(VkCommandBuffer command, const std::array<float, 16> &matrix, VkExtent2D extent) override;
 
   private:
+    QPointer<QObject> navigationControls;
     void initResources();
     void initDescriptors();
     void initPipelineLayout();
