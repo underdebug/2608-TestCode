@@ -28,7 +28,7 @@ import numpy as np
 import inspect
 import math
 
-LOG = 0 # 10/9 2026
+LOG = 1 # 10/15 2026
 
 np.set_printoptions(suppress=True)
 np.set_printoptions(linewidth=1000)
@@ -179,32 +179,23 @@ def cpu_stdvector(para, Type=None, Size=None):
 
     if LOG: PRINT('gdb.TYPE_CODE_STRUCT, Size_t', Size_t, 'Size >', Size)
     Size = normalize_size(Size_t, Size)
-    if LOG: PRINT('gdb.TYPE_CODE_STRUCT, start', start, 'Type', Type, 'Size <', Size)
+    if LOG: PRINT('gdb.TYPE_CODE_STRUCT, start', start, 'Type', Type, 'Size', Size)
 
     if Type is not None:                
         return cpu_memory(start, Type, Size)  
 
     results = []
-    for i in range(int(np.atleast_1d(Size)[0])):
-        struct = start[i]
-
-        result = {}
-        for field in struct.type.fields():
-            ftype2 = field.type.strip_typedefs().unqualified()
-
-            if ftype2.code in {
-                gdb.TYPE_CODE_INT,
-                gdb.TYPE_CODE_FLT,
-                gdb.TYPE_CODE_BOOL,
-                gdb.TYPE_CODE_ENUM,
-                gdb.TYPE_CODE_ARRAY,
-                gdb.TYPE_CODE_STRUCT}:
-                result[field.name] = cpu_(struct[field.name], None, None)
-
-            elif ftype2.code == gdb.TYPE_CODE_PTR:
-                result[field.name] = int(struct[field.name])
-
-        results.append(result)
+    # Decode the complete element, including GLM's anonymous unions, through
+    # cpu_ rather than iterating its fields here. Keep a list of records so
+    # callers can access position[0], position[1], etc.
+    count = math.prod(int(n) for n in np.atleast_1d(Size))
+    for i in range(count):
+        element = start[i]
+        element_type = element.type.strip_typedefs().unqualified()
+        if element_type.code == gdb.TYPE_CODE_PTR:
+            results.append(int(element))
+        else:
+            results.append(cpu_(element, None, None))
 
     return results
 
@@ -251,6 +242,9 @@ def cpu_stdpair(para):
     }
 
 def cpu_struct(para, Type=None, Size=None):
+    if Type is not None and Size is not None:
+        return cpu_memory(int(para.address), Type, Size)
+
     ftype = para.type.strip_typedefs()
 
     results = {}
@@ -288,7 +282,7 @@ def cpu_Eigen_Matrix(para, Type, Size):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     d = para['m_storage']['m_data']
     rows = int(ftype.template_argument(1))
@@ -329,7 +323,7 @@ def cpu_(para, Type=None, Size=None):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     # if LOG: PRINT('str(ftype)', str(ftype), 'ftype.code', ftype.code, 'Type', Type, 'Size', Size)
 
@@ -341,8 +335,19 @@ def cpu_(para, Type=None, Size=None):
 
         target_type = ftype.target().strip_typedefs().unqualified()
         if target_type.code == gdb.TYPE_CODE_STRUCT:
-            if LOG: PRINT('ftype.code == gdb.TYPE_CODE_PTR, target_type.code == gdb.TYPE_CODE_STRUCT ', para.dereference())
-            return cpu_(para.dereference(), Type, Size)
+            if LOG: PRINT('ftype.code == gdb.TYPE_CODE_PTR, target_type.code == gdb.TYPE_CODE_STRUCT ')
+            if Type is not None and Size is not None:
+                return cpu_memory(int(para), Type, Size)
+
+            if Size is None:
+                return cpu_(para.dereference(), Type)
+
+            Size_t = math.prod(int(n) for n in np.atleast_1d(Size))
+            results = []
+            for i in range(Size_t):
+                result = cpu_((para + i).dereference(), Type)
+                results.append(result)
+            return results
 
         Addr = int(para)
         if Type is None:
@@ -481,7 +486,7 @@ def gpu_(para, Type=None, Size=None):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()  
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     if ftype.code == gdb.TYPE_CODE_PTR: # 1
         if LOG: PRINT('str(ftype)', str(ftype))
@@ -536,7 +541,7 @@ def gpu(Name, Type=None, Size=None):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()  
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     if ftype.code != gdb.TYPE_CODE_PTR: # 1
         if LOG: PRINT('ftype.code != gdb.TYPE_CODE_PTR', ftype.code)
@@ -710,7 +715,7 @@ def kernel_(para, Type=None, Size=None, Step = 1):
         para = para.referenced_value()
         ftype = para.type.strip_typedefs()  
 
-    ftype = ftype.unqualified()
+    ftype = ftype.unqualified() # remove const volatile
 
     if LOG: PRINT('ftype', str(ftype), 'ftype.code', ftype.code)
 
@@ -805,9 +810,9 @@ def is_device_pointer(Name):
 
 def mem_(Name, Type=None, Size=None, Step=1):
     expression = Name.strip().rstrip(';').rstrip()
-    if expression.startswith('sizeof') and expression[len('sizeof'):].lstrip().startswith('('):
+    if '(' in expression:
         return int(gdb.parse_and_eval(expression))
-    
+
     TYPE = {
         'uc':        'unsigned char',
         'c':         'char',
@@ -841,10 +846,6 @@ def mem_(Name, Type=None, Size=None, Step=1):
     return None
 
 def mem(Name, Type=None, Size=None, Step=1):
-    if LOG: PRINT(
-        '- - - - - - - - - - - - - - - - - - - - - - - - - - - '
-        '- - - - - - - - - - - - - - - - - - - - - - - - - - - ')
-
     if LOG:
         data = mem_(Name, Type, Size, Step)
         # np.save(f'{PATH}/data/{Name}.npy', data) 
