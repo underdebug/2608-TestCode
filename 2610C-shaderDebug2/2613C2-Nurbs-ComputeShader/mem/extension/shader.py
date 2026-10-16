@@ -38,12 +38,26 @@ def translate_shader(shader_path: Path):
     shader, entry_points = re.subn(r"\bvoid\s+(?:main|shader)\s*\(\s*\)", "void shader()", shader)
     if entry_points != 1:
         raise RuntimeError("Expected exactly one void main() or void shader() entry point in the shader")
+
+    # GLSL decimal literals are floats; C++ otherwise promotes them to double.
+    shader = re.sub(r'\b(\d+\.\d*(?:[eE][+-]?\d+)?)(?![\w.])', r'\1f', shader)
+    # GLM function swizzles are values, so write components explicitly.
+    shader = re.sub(r'gl_Position\.xy\s*\+=\s*([^;]+);',
+                    r'{ vec2 offset = \1; gl_Position.x += offset.x; gl_Position.y += offset.y; }', shader)
  
     shader = re.sub(r"^([ \t]*)#version\b", r"\1//version", shader, flags=re.MULTILINE)
 
     # const float arr[5] = float[](1.1, 1.2, 1.3, 1.4, 1.5); 
     # => const float arr[5] = {1.1, 1.2, 1.3, 1.4, 1.5};
-    shader = re.sub(r"\bfloat\s*\[\s*\]\s*\(([^()]*)\)", r"{\1}", shader)
+    constructor = re.compile(r"\b(?:float|int|uint|bool|vec[234]|ivec[234]|uvec[234])\s*\[\s*\]\s*\(")
+    while match := constructor.search(shader):
+        end, depth = match.end(), 1
+        while end < len(shader) and depth:
+            depth += (shader[end] == '(') - (shader[end] == ')')
+            end += 1
+        if depth:
+            raise RuntimeError("Unterminated GLSL array constructor")
+        shader = shader[:match.start()] + '{' + shader[match.end():end - 1] + '}' + shader[end:]
     
     # vec4 position[]; => vec4* position = NULL;
     shader = re.sub(r"\b(\w+)\s+(\w+)\s*\[\s*\]\s*;", r"\1* \2 = NULL;", shader)
