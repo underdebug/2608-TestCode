@@ -8,6 +8,8 @@ layout(push_constant) uniform View
 {
     mat4 mvp;
     int mode;
+    int viewportWidth;
+    int viewportHeight;
 } view;
 
 layout(location = 0) out vec3 color;

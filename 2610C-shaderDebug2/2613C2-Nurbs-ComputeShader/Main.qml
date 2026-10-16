@@ -8,6 +8,12 @@ Rectangle {
     readonly property real cameraSpin: spin.value
     readonly property real cameraTilt: tilt.value
     readonly property real cameraDistance: distance.value
+    property real cameraPanX: 0
+    property real cameraPanY: 0
+    property real cameraPanZ: 0
+    property real coordinateX: 0
+    property real coordinateY: 0
+    property real coordinateZ: 0
     readonly property bool showGrid: gridVisible.checked
     readonly property bool showPoints: pointsVisible.checked
     readonly property bool showControlPoints: controlPointsVisible.checked
@@ -19,10 +25,26 @@ Rectangle {
 
     signal settingsChanged
 
+    function rotateCamera(spinDelta, tiltDelta) {
+        spin.value = ((spin.value + spinDelta + 180) % 360 + 360) % 360 - 180;
+        tilt.value = Math.max(tilt.from, Math.min(tilt.to, tilt.value + tiltDelta));
+    }
+
+    function zoomCamera(steps) {
+        distance.value = Math.max(distance.from,
+                                 Math.min(distance.to, distance.value * Math.pow(0.85, steps)));
+    }
+
     onSurfaceStyleChanged: settingsChanged()
     onCameraSpinChanged: settingsChanged()
     onCameraTiltChanged: settingsChanged()
     onCameraDistanceChanged: settingsChanged()
+    onCameraPanXChanged: settingsChanged()
+    onCameraPanYChanged: settingsChanged()
+    onCameraPanZChanged: settingsChanged()
+    onCoordinateXChanged: settingsChanged()
+    onCoordinateYChanged: settingsChanged()
+    onCoordinateZChanged: settingsChanged()
     onShowGridChanged: settingsChanged()
     onShowPointsChanged: settingsChanged()
     onShowControlPointsChanged: settingsChanged()
@@ -95,8 +117,8 @@ Rectangle {
             id: distance
 
             Layout.fillWidth: true
-            from: 220
-            to: 900
+            from: 20
+            to: 5000
             value: 450
         }
 
@@ -130,6 +152,12 @@ Rectangle {
                 spin.value = 25;
                 tilt.value = 55;
                 distance.value = 450;
+                panel.cameraPanX = 0;
+                panel.cameraPanY = 0;
+                panel.cameraPanZ = 0;
+                panel.coordinateX = 0;
+                panel.coordinateY = 0;
+                panel.coordinateZ = 0;
             }
         }
 

@@ -46,6 +46,10 @@ link_directories(
 
 add_executable(${PROJECT_NAME}
     main.cpp
+    VulkanWindow.cpp
+    VulkanWindow.h
+    MouseTool.cpp
+    MouseTool.h
     SurfaceGeometry.cpp
     SurfaceGeometry.h
 )
@@ -82,14 +86,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # Shader sources and generated .spv files are in ./shader.
 # -g retains shader debug information; -Od disables shader optimization.
 set(SHADER_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/shader")
+file(GLOB SHADER_SOURCES CONFIGURE_DEPENDS
+    "${SHADER_DIRECTORY}/*.vert"
+    "${SHADER_DIRECTORY}/*.frag"
+    "${SHADER_DIRECTORY}/*.comp"
+)
 set(SHADER_BINARIES)
-foreach(SHADER nurbs.vert nurbs.frag nurbs.comp)
-    set(BINARY "${SHADER_DIRECTORY}/${SHADER}.spv")
+foreach(SHADER IN LISTS SHADER_SOURCES)
+    set(BINARY "${SHADER}.spv")
     add_custom_command(
         OUTPUT "${BINARY}"
         COMMAND "${GLSLANG_VALIDATOR}" -V --glsl-version 450 -g -Od
-                "${SHADER_DIRECTORY}/${SHADER}" -o "${BINARY}"
-        DEPENDS "${SHADER_DIRECTORY}/${SHADER}"
+                "${SHADER}" -o "${BINARY}"
+        DEPENDS "${SHADER}"
         VERBATIM
     )
     list(APPEND SHADER_BINARIES "${BINARY}")
