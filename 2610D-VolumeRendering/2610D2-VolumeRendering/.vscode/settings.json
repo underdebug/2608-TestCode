@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "*.vert": "cpp",
+        "*.frag": "cpp",
+        "*.glsl": "cpp",
+        "*.comp": "cpp",
+        "*.geom": "cpp",
+        "*.tesc": "cpp",
+        "*.tese": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "disabled",
+    "debug.console.collapseIdenticalLines": false,
+    "debug.allowBreakpointsEverywhere": true,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "[javascript]": {
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false
+    }
+}
