@@ -1,0 +1,47 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GDB: CPU volume shader",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/volume",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build CPU volume shader",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "stopAtEntry": true,
+            "externalConsole": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "CUDA-GDB",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake",
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "GDB",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "externalConsole": false,
+            "setupCommands": [
+                {
+                    "text": "source ${workspaceFolder}/mem/capture_volume_auto.py",
+                    "description": "Capture shader inputs every two seconds",
+                    "ignoreFailures": false
+                }
+            ],
+            "environment": [{ "name": "VOLUME_AUTO_CAPTURE", "value": "1" }],
+            "internalConsoleOptions": "openOnSessionStart"
+        }
+    ]
+}

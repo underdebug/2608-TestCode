@@ -1,4 +1,5 @@
 {
+    "chat.disableAIFeatures": true,
     "files.associations": {
         "*.vert": "cpp",
         "*.frag": "cpp",
@@ -11,7 +12,7 @@
     "editor.tabSize": 4,
     "editor.insertSpaces": true,
     "editor.detectIndentation": false,
-    "[javascript]": {
+    "[javascript][json]": {
         "editor.tabSize": 4,
         "editor.insertSpaces": true,
         "editor.detectIndentation": false

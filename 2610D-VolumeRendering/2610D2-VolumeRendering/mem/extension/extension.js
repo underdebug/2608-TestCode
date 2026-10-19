@@ -724,7 +724,7 @@ async function cmdDebug() {
     const filename = editor.document.uri.fsPath;
     const isPythonFile = editor.document.languageId === 'python' || /\.py$/i.test(filename);
     const isCppFile = /\.(c|cpp|h|hpp)$/i.test(filename);   
-    const isShaderFile = /\.(vert|frag|geom|tesc|tese|comp|glsl)$/i.test(filename);
+    const isShaderFile = /\.(vert|frag|comp|glsl)$/i.test(filename);
     const isKernelFile = /\.(cu|cuh)$/i.test(filename);
 
     const sourceText = editor.document.getText().replace(
@@ -732,7 +732,7 @@ async function cmdDebug() {
         comment => comment.replace(/[^\r\n]/g, ' ')
     );
 
-    const includeShaderFile = /^[ \t]*#[ \t]*include[ \t]*["<][^"<>\r\n]+\.(vert|frag|geom|tesc|tese|comp|glsl)[">]/im.test(sourceText);
+    const includeShaderFile = /^[ \t]*#[ \t]*include[ \t]*["<][^"<>\r\n]+\.(vert|frag|comp|glsl)[">]/im.test(sourceText);
     const includeKernelFile = /^[ \t]*#[ \t]*include[ \t]*["<][^"<>\r\n]+\.(cu|cuh)[">]/im.test(sourceText);
 
     if(isPythonFile){
@@ -794,7 +794,110 @@ async function cmdDebug() {
         if (!await buildKernel(editor, source)) return;
         await debugCpp(editor, 'cuda-gdb');
     }
+}
 
+async function scriptPython() {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor) {
+        log('vscode.window.activeTextEditor; !editor return');
+        return;
+    }
+    
+    if (!await editor.document.save()) return;
+
+    const filename = editor.document.uri.fsPath;
+    const isPythonFile = editor.document.languageId === 'python' || /\.py$/i.test(filename);
+    const isCppFile = /\.(c|cpp|h|hpp)$/i.test(filename);   
+    const isShaderFile = /\.(vert|frag|comp|glsl)$/i.test(filename);
+    const isKernelFile = /\.(cu|cuh)$/i.test(filename);
+
+    if(isPythonFile){
+        return filename;
+    }
+    
+    const source = `${filename}.py`;
+    const wrapper = "print('hello mingjie!')\n";
+    try {
+        await fs.promises.writeFile(source, wrapper, { encoding: 'utf8', flag: 'wx' });
+    } catch (e) {
+        if (e.code !== 'EEXIST') {
+            log('Error creating script wrapper', e.message);
+            vscode.window.showErrorMessage(`mem: ${e.message}`);
+            return;
+        }
+    } 
+    
+    return source;
+}
+
+async function scriptDebug(filename) {
+    const folder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filename));
+    if (!folder) {
+        vscode.window.showErrorMessage('mem: Open the project folder before starting automatic capture.');
+        return;
+    }
+    const scriptPath = (/\.py$/i.test(filename)
+        ? filename
+        : path.join(folder.uri.fsPath, 'mem', 'capture_volume_auto.py')).replace(/\\/g, '/');
+    await fs.promises.access(scriptPath, fs.constants.R_OK);
+    const configurations = vscode.workspace.getConfiguration('launch', folder.uri)
+        .get('configurations', []);
+    const configuration = configurations.find(config => config.name === 'GDB'
+        && config.type === 'cppdbg' && config.request === 'launch'
+        && (!config.MIMode || config.MIMode === 'gdb'));
+    if (!configuration) {
+        vscode.window.showErrorMessage('mem: Add a GDB launch configuration named "GDB" to launch.json.');
+        return;
+    }
+
+    // Run inside GDB, where the gdb Python module and debug symbols exist.
+    // GDB's source command treats quotes as literal filename characters.
+    const scriptCommand = `python import runpy; runpy.run_path(${JSON.stringify(scriptPath)}, run_name='__main__')`;
+    const setupCommands = (configuration.setupCommands || []).filter(command => {
+        const match = /^\s*source\s+(.+?)\s*$/.exec(command.text || '');
+        const sourcePath = match && match[1].replace(/^"(.*)"$/, '$1')
+            .replace(/\$\{workspaceFolder\}/g, folder.uri.fsPath).replace(/\\/g, '/');
+        return sourcePath !== scriptPath && command.text !== scriptCommand;
+    });
+    setupCommands.push({
+        text: scriptCommand,
+        description: 'Capture shader inputs every two seconds',
+        ignoreFailures: false
+    });
+    const environment = (configuration.environment || [])
+        .filter(entry => entry.name !== 'VOLUME_AUTO_CAPTURE');
+    environment.push({ name: 'VOLUME_AUTO_CAPTURE', value: '1' });
+
+    // Start explicitly and await configuration resolution and the build task.
+    // This does not depend on the dropdown selection or a temporary provider.
+    const started = await vscode.debug.startDebugging(folder, {
+        ...configuration,
+        name: 'GDB: Automatic volume capture',
+        stopAtEntry: false,
+        setupCommands,
+        environment,
+        internalConsoleOptions: 'openOnSessionStart'
+    });
+    if (!started) {
+        vscode.window.showErrorMessage('mem: Could not start automatic volume capture.');
+    }
+}
+
+async function cmdScript() {
+    if (vscode.debug.activeDebugSession) {
+        vscode.window.showErrorMessage('mem: Stop the current debug session before starting automatic capture.');
+        return;
+    }
+    if (!await vscode.workspace.saveAll()) return;
+    
+    try {
+        const filename = await scriptPython();
+        if (!filename) return;
+        await scriptDebug(filename);
+    } catch (e) {
+        log('Error cmdScript', e.message);
+        vscode.window.showErrorMessage(`mem: ${e.message}`);
+    }
 }
 
 async function activate(context) {
@@ -817,7 +920,11 @@ async function activate(context) {
         await cmdDebug();
     });
 
-    context.subscriptions.push(cmd, debugCmd);
+    const scriptCmd = vscode.commands.registerCommand('script', async () => { // F7
+        await cmdScript();
+    });
+
+    context.subscriptions.push(cmd, debugCmd, scriptCmd);
 }
 
 function deactivate() {}

@@ -96,16 +96,18 @@ async function setSettingJson() {
         }
     }
 
-    const javascript = cfg.inspect('[javascript]')?.workspaceValue || {};
-    const javascriptSettings = {
+    const indentationSettings = {
         'editor.tabSize': 4,
         'editor.insertSpaces': true,
         'editor.detectIndentation': false
     };
-    if (Object.entries(javascriptSettings).some(([key, value]) => javascript[key] !== value)) {
-        await cfg.update('[javascript]', {
-            ...javascript,
-            ...javascriptSettings
+    
+    const key = '[javascript][json]';
+    const languageSettings = cfg.inspect(key)?.workspaceValue || {};
+    if (Object.entries(indentationSettings).some(([setting, value]) => languageSettings[setting] !== value)) {
+        await cfg.update(key, {
+            ...languageSettings,
+            ...indentationSettings
         }, target);
     }
 }
