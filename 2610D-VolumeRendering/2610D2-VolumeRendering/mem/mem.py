@@ -359,21 +359,26 @@ def cpu_(para, Type=None, Size=None):
         return cpu_array(para, Type, Size)
 
     elif ftype.code in {gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION}: # 3, 4
-        if str(ftype).startswith('std::vector'):
+        # Match only the outer type, excluding template arguments.
+        type_name = str(ftype).split('<', 1)[0].strip()
+        if type_name == 'std::vector':
             return cpu_stdvector(para, Type, Size)
 
-        elif str(ftype).startswith('std::array'):
+        elif type_name == 'std::array':
             return cpu_stdarray(para, Type, Size)
 
-        elif str(ftype).startswith('std::pair'):
+        elif type_name == 'std::pair':
             return cpu_stdpair(para)
 
-        elif '::basic_string' in str(ftype): # std::string
+        elif type_name in {'std::filesystem::path', 'std::filesystem::__cxx11::path'}:
+            return cpu_(para['_M_pathname'])
+
+        elif type_name in {'std::basic_string', 'std::__cxx11::basic_string'}:
             n = int(para['_M_string_length'])
-            s = para['_M_dataplus']['_M_p'].string(PRINTlength=n)
+            s = para['_M_dataplus']['_M_p'].string(length=n)
             return np.str_(s)  
 
-        elif 'Eigen::Matrix' in str(ftype): # Eigen::Matrix
+        elif type_name == 'Eigen::Matrix':
             return cpu_Eigen_Matrix(para, Type, Size)
 
         else:

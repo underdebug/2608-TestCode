@@ -9,9 +9,10 @@
 #include "shader.h"
 #include "volume.frag"
 
-// Debugger-visible full-frame output. Increase these for a finer CPU image.
-int viewportWidth = 128;
-int viewportHeight = 128;
+// Match main.cpp's default 1100x800 window minus the 280px controls.
+// Optional command-line arguments override the render width and height.
+int viewportWidth = 820;
+int viewportHeight = 800;
 int renderedPixels = 0;
 std::vector<vec4> framebuffer;
 std::vector<float> depthbuffer;
@@ -22,7 +23,9 @@ void frameReady() { std::puts("Frame ready: open mem/plot_frag.py and press F8."
 int main(int argc, char **argv)
 {
     const auto root = std::filesystem::path(__FILE__).parent_path().parent_path();
-    auto cache = root / "build/cpu-volume.bin";
+    const auto dataDirectory = root / "mem/data";
+    std::filesystem::create_directories(dataDirectory);
+    auto cache = dataDirectory / "cpu-volume.bin";
     if (!std::filesystem::exists(cache)) {
         const auto program = (root / "build/test").string();
         const char *dicom = std::getenv("DICOM_DIRECTORY");
@@ -61,6 +64,21 @@ int main(int argc, char **argv)
     camera = glm::rotate(camera, glm::radians(25.0f), vec3(0, 1, 0));
     view.inverseMatrix = glm::inverse(projection * camera);
     view.transfer = vec4(275.0f, 350.0f, 1.0f, 1.0f);
+    // Optional snapshot captured from the main application's recordScene().
+    const auto snapshot = dataDirectory / "cpu-view.bin";
+    if (std::filesystem::exists(snapshot)) {
+        static_assert(sizeof(view) == 112);
+        std::ifstream input(snapshot, std::ios::binary);
+        input.read(reinterpret_cast<char *>(&view), sizeof(view));
+        uint32_t extent[2]{};
+        input.read(reinterpret_cast<char *>(extent), sizeof(extent));
+        if (!input || extent[0] < 1 || extent[1] < 1 || extent[0] > 4096 || extent[1] > 4096)
+            throw std::runtime_error("Invalid captured CPU view");
+        if (size_t(view.dimensions.x) * view.dimensions.y * view.dimensions.z != count)
+            throw std::runtime_error("Captured view does not match CPU volume");
+        viewportWidth = int(extent[0]);
+        viewportHeight = int(extent[1]);
+    }
     framebuffer.assign(size_t(viewportWidth) * viewportHeight, vec4(0, 0, 0, 1));
     depthbuffer.assign(framebuffer.size(), 1.0f);
     for (int y = 0; y < viewportHeight; ++y) {

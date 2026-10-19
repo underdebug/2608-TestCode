@@ -64,12 +64,19 @@ int main(int argc, char **argv)
 {
     const std::string directory = argc > 1 ? argv[1] : "/home/roots/develop/data/DICOM";
     const bool validate = argc > 2 && std::string(argv[2]) == "--validate";
-    if (validate)
+    const bool exportCpu = argc > 2 && std::string(argv[2]) == "--export-cpu";
+    if (validate || exportCpu)
         qputenv("QT_QPA_PLATFORM", "offscreen");
     QApplication app(argc, argv);
-    if (validate)
+    if (validate || exportCpu)
     {
-        try { VolumeRendering volume; volume.loadDicom(directory); return 0; }
+        try {
+            if (exportCpu && argc < 4) throw std::runtime_error("Missing CPU export filename");
+            VolumeRendering volume;
+            volume.loadDicom(directory);
+            if (exportCpu) volume.exportCpu(argv[3]);
+            return 0;
+        }
         catch (const std::exception &error) { fprintf(stderr, "%s\n", error.what()); return 1; }
     }
 

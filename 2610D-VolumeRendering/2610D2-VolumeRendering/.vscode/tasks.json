@@ -2,6 +2,18 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Build CPU volume shader",
+            "type": "process",
+            "command": "python3",
+            "args": [
+                "${workspaceFolder}/mem/extension/shader.py",
+                "${workspaceFolder}/shader/volume.frag.cpp",
+                "--output", "${workspaceFolder}/build/volume"
+            ],
+            "dependsOn": "CMake",
+            "problemMatcher": ["$gcc"]
+        },
+        {
             "label": "CMake",
             "type": "shell",
             "command": "cmake -S \"${workspaceFolder}\" -B \"${workspaceFolder}/build\" -DCMAKE_BUILD_TYPE=Debug && cmake --build \"${workspaceFolder}/build\" --config Debug",

@@ -2,11 +2,8 @@
     "files.associations": {
         "*.vert": "cpp",
         "*.frag": "cpp",
-        "*.glsl": "cpp",
         "*.comp": "cpp",
-        "*.geom": "cpp",
-        "*.tesc": "cpp",
-        "*.tese": "cpp"
+        "*.glsl": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled",
     "debug.console.collapseIdenticalLines": false,

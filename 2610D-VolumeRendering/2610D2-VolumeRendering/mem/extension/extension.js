@@ -22,6 +22,7 @@
 
 const vscode = require('vscode');
 const { registerShaderDefinitions } = require('./definitions');
+const { applySettings } = require('./settings');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
@@ -97,16 +98,6 @@ async function getStackFunction(session) {
         .join(' <- ');
 }
 
-async function disableCollapseIdenticalLines() {
-    const cfg = vscode.workspace.getConfiguration('debug');
-
-    await cfg.update(
-        'console.collapseIdenticalLines',
-        false,
-        vscode.ConfigurationTarget.Global
-    );
-}
-
 async function isOpeningProject(context) {
     let openingProject = false;
     const openProject = async (editor) => {
@@ -125,84 +116,6 @@ async function isOpeningProject(context) {
         vscode.window.onDidChangeActiveTextEditor(openProject)
     );
     return await openProject(vscode.window.activeTextEditor);
-}
-
-async function setLaunchJson() {
-    const cfg = vscode.workspace.getConfiguration('launch');
-
-    const configurations = cfg.get('configurations', []);
-
-    let changed = false;
-
-    for (const config of configurations) {
-        if (config.type === 'debugpy' && config.console !== 'internalConsole') {
-            config.console = 'internalConsole';
-            changed = true;
-        }
-        if (config.type === 'debugpy' && config.redirectOutput !== true) {
-            config.redirectOutput = true;
-            changed = true;
-        }
-        if (config.internalConsoleOptions !== 'openOnSessionStart') {
-            config.internalConsoleOptions = 'openOnSessionStart';
-            changed = true;
-        }
-    }
-
-    if (changed) {
-        await cfg.update(
-            'configurations',
-            configurations,
-            vscode.ConfigurationTarget.Workspace
-        );
-    }
-}
-
-async function setSettingJson() {
-    if (!vscode.workspace.workspaceFolders?.length) return;
-
-    const cfg = vscode.workspace.getConfiguration();
-    const target = vscode.ConfigurationTarget.Workspace;
-    const shaderAssociations = Object.fromEntries(
-        ['vert', 'frag', 'geom', 'tesc', 'tese', 'comp', 'glsl']
-            .map(extension => [`*.${extension}`, 'cpp'])
-    );
-    const associations = cfg.get('files.associations', {});
-    if (Object.entries(shaderAssociations).some(([key, value]) => associations[key] !== value)) {
-        await cfg.update('files.associations', {
-            ...associations,
-            ...shaderAssociations
-        }, target);
-    }
-
-    const settings = {
-        // GLSL uses C++ highlighting, but its syntax is not valid C++.
-        'C_Cpp.errorSquiggles': 'disabled',
-        'debug.console.collapseIdenticalLines': false,
-        'debug.allowBreakpointsEverywhere': true,
-        'editor.tabSize': 4,
-        'editor.insertSpaces': true,
-        'editor.detectIndentation': false
-    };
-
-    for (const [key, value] of Object.entries(settings)) {
-        if (cfg.inspect(key)?.workspaceValue !== value) {
-            await cfg.update(key, value, target);
-        }
-    }
-
-    const javascript = cfg.inspect('[javascript]')?.workspaceValue || {};
-    const javascriptSettings = {
-        'editor.tabSize': 4,
-        'editor.insertSpaces': true,
-        'editor.detectIndentation': false
-    };
-    if (Object.entries(javascriptSettings).some(([key, value]) => javascript[key] !== value)) {
-        await cfg.update('[javascript]', {
-            ...javascript,
-            ...javascriptSettings
-        }, target);
-    }
 }
 
 async function initialMem(session) {
@@ -887,27 +800,20 @@ async function cmdDebug() {
 async function activate(context) {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    registerShaderDefinitions(vscode, context);
     if (await isOpeningProject(context)) {
         return;
     }
 
-    LOG && log('disableCollapseIdenticalLines()');
-    await disableCollapseIdenticalLines();
-
-    LOG && log('setLaunchJson()');
-    await setLaunchJson();
-
-    LOG && log('setSettingJson()');
-    await setSettingJson();
+    await registerShaderDefinitions(vscode, context);
+    await applySettings();
 
     const initializedSessions = new WeakSet();
 
-    const cmd = vscode.commands.registerCommand('mem', async () => {
+    const cmd = vscode.commands.registerCommand('mem', async () => { // F8
         await cmdMem(initializedSessions);
     });
 
-    const debugCmd = vscode.commands.registerCommand('debug', async () => {
+    const debugCmd = vscode.commands.registerCommand('debug', async () => { // F6
         await cmdDebug();
     });
 

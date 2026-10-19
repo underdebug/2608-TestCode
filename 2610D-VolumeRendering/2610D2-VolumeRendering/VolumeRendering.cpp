@@ -1,6 +1,7 @@
 #include "VolumeRendering.h"
 #include <QEvent>
 #include <QVariant>
+#include <QTimer>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -14,6 +15,17 @@
 #include <gdcmIPPSorter.h>
 #include <gdcmStringFilter.h>
 using Matrix4 = std::array<float, 16>;
+void VolumeRendering::exportCpu(const std::string &filename) const
+{
+    if (voxels.empty()) throw std::runtime_error("No DICOM volume loaded");
+    std::ofstream file(filename, std::ios::binary);
+    file.write(reinterpret_cast<const char *>(dimensions.data()), sizeof(dimensions));
+    file.write(reinterpret_cast<const char *>(halfSize.data()), sizeof(halfSize));
+    file.write(reinterpret_cast<const char *>(voxels.data()), voxels.size() * sizeof(uint32_t));
+    file.close();
+    if (!file) throw std::runtime_error("Cannot export CPU volume: " + filename);
+}
+
 struct ViewConstants
 {
     Matrix4 inverse;
@@ -211,7 +223,15 @@ bool VolumeRendering::event(QEvent *event)
 }
 
 
-VolumeRendering::VolumeRendering(QWindow *parent) : VulkanWindow(parent) {}
+VolumeRendering::VolumeRendering(QWindow *parent) : VulkanWindow(parent)
+{
+    if (qEnvironmentVariableIsSet("VOLUME_AUTO_CAPTURE")) {
+        auto *timer = new QTimer(this);
+        timer->setTimerType(Qt::PreciseTimer);
+        connect(timer, &QTimer::timeout, this, [this] { requestUpdate(); });
+        timer->start(2000);
+    }
+}
 VolumeRendering::~VolumeRendering()
 {
     VulkanWindow::release();
@@ -332,7 +352,7 @@ void VolumeRendering::releaseScene()
     vkFreeMemory(device, inputMemory, nullptr);
     device = VK_NULL_HANDLE;
 }
-void VolumeRendering::recordScene(VkCommandBuffer command, const Matrix4 &matrix, VkExtent2D)
+void VolumeRendering::recordScene(VkCommandBuffer command, const Matrix4 &matrix, VkExtent2D extent)
 {
     ViewConstants push{};
     const auto inverse = glm::inverse(glm::make_mat4(matrix.data()));
@@ -340,6 +360,11 @@ void VolumeRendering::recordScene(VkCommandBuffer command, const Matrix4 &matrix
     push.halfSize = halfSize;
     push.dimensions = dimensions;
     push.transfer = {windowCenter, windowWidth, opacity, vesselMode ? 1.0f : 0.0f};
+
+    
+    // The GDB launch captures inputs every two seconds via mem/capture_volume_auto.py.
+    // To capture manually, pause here and run mem/capture_volume.py (F8).
+    // capture_volume.py
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
     vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
     vkCmdPushConstants(command, pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(push), &push);

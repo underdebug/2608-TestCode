@@ -10,6 +10,7 @@ public:
     explicit VolumeRendering(QWindow *parent = nullptr);
     ~VolumeRendering() override;
     void loadDicom(const std::string &directory);
+    void exportCpu(const std::string &filename) const;
     void setNavigationControls(QObject *controls);
     void applyCameraControls();
     void navigationChanged() override;
