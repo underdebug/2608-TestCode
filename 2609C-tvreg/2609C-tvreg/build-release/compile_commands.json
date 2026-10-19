@@ -1,0 +1,14 @@
+[
+{
+  "directory": "/home/roots/develop/2608B-TestCode-1019/2609C-tvreg/2609C-tvreg/build-release",
+  "command": "/usr/bin/c++   -O3 -DNDEBUG -std=c++17 -x c++ -o CMakeFiles/test.dir/main.cu.o -c /home/roots/develop/2608B-TestCode-1019/2609C-tvreg/2609C-tvreg/main.cu",
+  "file": "/home/roots/develop/2608B-TestCode-1019/2609C-tvreg/2609C-tvreg/main.cu",
+  "output": "CMakeFiles/test.dir/main.cu.o"
+},
+{
+  "directory": "/home/roots/develop/2608B-TestCode-1019/2609C-tvreg/2609C-tvreg/build-release",
+  "command": "/usr/bin/c++   -O3 -DNDEBUG -std=c++17 -o CMakeFiles/psnr.dir/psnr.cpp.o -c /home/roots/develop/2608B-TestCode-1019/2609C-tvreg/2609C-tvreg/psnr.cpp",
+  "file": "/home/roots/develop/2608B-TestCode-1019/2609C-tvreg/2609C-tvreg/psnr.cpp",
+  "output": "CMakeFiles/psnr.dir/psnr.cpp.o"
+}
+]

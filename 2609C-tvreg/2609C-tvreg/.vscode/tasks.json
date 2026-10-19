@@ -2,22 +2,44 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "CUDA Make",
-            "type": "shell",
-            "command": "cmake --build ${env:HOME}/develop/build/${workspaceFolderBasename}",
+            "label": "CMake Configure",
+            "type": "process",
+            "command": "cmake",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}/build",
+                "-DCMAKE_BUILD_TYPE=Debug"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "CMake Build",
+            "type": "process",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build",
+                "--parallel"
+            ],
+            "dependsOn": "CMake Configure",
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
             "problemMatcher": [
-		        "$nvcc"
+                "$gcc"
             ]
         },
         {
             "label": "Run",
-            "type": "shell",
-            "command": "${workspaceFolder}/test",
-            "dependsOn": "CUDA Make",
+            "type": "process",
+            "command": "${workspaceFolder}/build/test",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "CMake Build",
             "group": "test",
             "presentation": {
                 "reveal": "always",

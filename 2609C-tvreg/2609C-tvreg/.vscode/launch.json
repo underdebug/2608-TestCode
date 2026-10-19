@@ -2,12 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "CUDA-GDB",
-            "type": "cuda-gdb",
+            "name": "Debug TV denoiser",
+            "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/test",
+            "program": "${workspaceFolder}/build/test",
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "CUDA Make",
+            "preLaunchTask": "CMake Build",
+            "MIMode": "gdb",
+            "internalConsoleOptions": "openOnSessionStart"
         }
     ]
 }
