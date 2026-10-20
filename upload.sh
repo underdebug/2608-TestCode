@@ -7,7 +7,7 @@ source ../git.sh
 [ -n "$GH_TOKEN" ] || { echo "no GH_TOKEN"; exit 1; }
 [ -n "$GH_USER" ] || { echo "no GH_USER"; exit 1; }
 
-REPO="github.com/underdebug/2608B-TestCode.git"
+REPO="github.com/underdebug/2608-TestCode.git"
 BRANCH="master"
 URL="https://${GH_USER}:${GH_TOKEN}@${REPO}"
 MSG="${1:-update $(date '+%F %H:%M')}"
