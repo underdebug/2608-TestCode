@@ -85,6 +85,7 @@ async function setSettingJson() {
         'C_Cpp.errorSquiggles': 'disabled',
         'debug.console.collapseIdenticalLines': false,
         'debug.allowBreakpointsEverywhere': true,
+        'debug.openDebug': 'neverOpen',
         'editor.tabSize': 4,
         'editor.insertSpaces': true,
         'editor.detectIndentation': false

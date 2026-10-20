@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <filesystem>
@@ -81,19 +82,43 @@ int main(int argc, char **argv)
     }
     framebuffer.assign(size_t(viewportWidth) * viewportHeight, vec4(0, 0, 0, 1));
     depthbuffer.assign(framebuffer.size(), 1.0f);
-    for (int y = 0; y < viewportHeight; ++y) {
-        for (int x = 0; x < viewportWidth; ++x) {
-            ndc = vec2(2.0f * (x + 0.5f) / viewportWidth - 1.0f,
-                        2.0f * (y + 0.5f) / viewportHeight - 1.0f);
-            color = vec4(0, 0, 0, 1); // Background for discarded fragments.
-            gl_FragDepth = 1.0f;
-            shader();
-            size_t pixel = size_t(y) * viewportWidth + x;
-            framebuffer[pixel] = color;
-            depthbuffer[pixel] = gl_FragDepth;
-            ++renderedPixels;
+
+    int x0 = viewportWidth / 2;
+    int y0 = viewportHeight / 2;
+    int rounds = std::max(x0, y0);
+
+    auto renderPixel = [&](int x, int y) {
+        if (x < 0 || x >= viewportWidth || y < 0 || y >= viewportHeight)
+            return;
+        ndc = vec2(2.0f * (x + 0.5f) / viewportWidth - 1.0f,
+                    2.0f * (y + 0.5f) / viewportHeight - 1.0f);
+        color = vec4(0, 0, 0, 1); // Background for discarded fragments.
+        gl_FragDepth = 1.0f;
+        shader();
+        size_t pixel = size_t(y) * viewportWidth + x;
+        framebuffer[pixel] = color;
+        depthbuffer[pixel] = gl_FragDepth;
+        ++renderedPixels;
+    };
+
+    for (int round = 0; round <= rounds; ++round) {
+        int xstart = x0 - round;
+        int xend = x0 + round;
+        int ystart = y0 - round;
+        int yend = y0 + round;
+
+        // Top and bottom edges, including corners.
+        for (int x = xstart; x <= xend; ++x) {
+            renderPixel(x, ystart);
+            if (round > 0) renderPixel(x, yend);
         }
-        std::printf("\rRendering %d/%d rows", y + 1, viewportHeight);
+        // Left and right edges, excluding the corners already rendered.
+        for (int y = ystart + 1; y < yend; ++y) {
+            renderPixel(xstart, y);
+            renderPixel(xend, y);
+        }
+
+        std::printf("\rRendering %d/%zu pixels", renderedPixels, framebuffer.size());
         std::fflush(stdout);
     }
     std::puts("");
