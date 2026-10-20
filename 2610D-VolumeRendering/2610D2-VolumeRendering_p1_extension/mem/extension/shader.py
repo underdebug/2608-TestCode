@@ -153,6 +153,38 @@ def find_shader(source: Path):
     return shaders[0] if shaders else None
 
 
+def referenced_sources(source: Path):
+    """Follow local includes and compile their companion implementations only."""
+    implementation_extensions = ('.cc', '.cpp', '.cxx', '.c')
+    header_extensions = {'.h', '.hpp', '.hxx'}
+    fallback = Path(__file__).resolve().parent
+    pending = [source.resolve()]
+    visited, implementations, included = set(), set(), {source.resolve()}
+    while pending:
+        current = pending.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+        text = re.sub(r'/\*.*?\*/|//[^\n]*',
+                      lambda match: '\n' * match.group().count('\n'),
+                      current.read_text(encoding='utf-8'), flags=re.DOTALL)
+        for match in re.finditer(r'^\s*#\s*include\s*"([^"\n]+)"', text, re.MULTILINE):
+            candidates = [current.parent / match[1], source.parent / match[1], fallback / match[1]]
+            dependency = next((file.resolve() for file in candidates if file.is_file()), None)
+            if dependency is None:
+                continue  # Let the compiler report unresolved includes.
+            pending.append(dependency)
+            if dependency.suffix in implementation_extensions:
+                included.add(dependency)
+            if dependency.suffix in header_extensions:
+                for extension in implementation_extensions:
+                    companion = dependency.with_suffix(extension)
+                    if companion.is_file():
+                        implementations.add(companion)
+                        pending.append(companion)
+    return sorted(implementations - included)
+
+
 def build(source: Path, executable: Path):
     source = source.resolve()
     executable.parent.mkdir(parents=True, exist_ok=True)
@@ -160,6 +192,7 @@ def build(source: Path, executable: Path):
     command = [
             *shlex.split(os.environ.get("CXX", "g++")),
             "-std=c++17", "-O0", "-g3", str(source),
+            *(str(file) for file in referenced_sources(source)),
             "-o", str(executable),
     ]
     if shader is not None:

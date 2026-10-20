@@ -434,7 +434,23 @@ async function buildCpp(editor, source = editor.document.uri.fsPath) {
         );
         if (stdout) vscode.debug.activeDebugConsole.appendLine(stdout.trimEnd());
         if (stderr) vscode.debug.activeDebugConsole.appendLine(stderr.trimEnd());
-        return true;
+        const started = await vscode.debug.startDebugging(folder, {
+            name: `C++: Debug ${path.basename(filename)}`,
+            type: 'cppdbg',
+            request: 'launch',
+            program: appExecutable(editor),
+            cwd: path.dirname(source),
+            MIMode: 'gdb',
+            miDebuggerPath: process.env.GDB || 'gdb',
+            externalConsole: false,
+            internalConsoleOptions: 'openOnSessionStart',
+            stopAtEntry: false
+        });
+        if (!started) {
+            vscode.window.showErrorMessage('mem: Could not start the C++ debugger.');
+        }
+        // Debugging is handled here; skip the caller's launch.json configuration.
+        return false;
     } catch (e) {
         await showBuildError(e);
         return false;
@@ -445,19 +461,35 @@ async function buildShader(editor, source) {
     try {
         if (!await vscode.workspace.saveAll()) return false;
         const filename = editor.document.uri.fsPath;
-        source = source || (/\.(cpp|cc|cxx|c|h|hpp\+\+)$/i.test(filename)
+        source = source || (/\.(cpp|cc|cxx|c|h|hpp|hxx)$/i.test(filename)
             ? filename : `${filename}.cc`);
-        const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
-        const root = folder ? folder.uri.fsPath : path.dirname(filename);
         await fs.promises.mkdir(appBuildDirectory(editor), { recursive: true });
         const { stdout, stderr } = await execFileAsync(
-            process.platform === 'win32' ? 'python' : 'python3',
+            'python3',
             [path.join(__dirname, 'shader.py'), source, '--output', appExecutable(editor)],
-            { cwd: root, maxBuffer: 10 * 1024 * 1024 }
+            { cwd: path.dirname(source), maxBuffer: 10 * 1024 * 1024 }
         );
         if (stdout) vscode.debug.activeDebugConsole.appendLine(stdout.trimEnd());
         if (stderr) vscode.debug.activeDebugConsole.appendLine(stderr.trimEnd());
-        return true;
+        const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+        const started = await vscode.debug.startDebugging(folder, {
+            name: `Shader: Debug ${path.basename(filename)}`,
+            type: 'cppdbg',
+            request: 'launch',
+            program: appExecutable(editor),
+            cwd: path.dirname(source),
+            MIMode: 'gdb',
+            miDebuggerPath: process.env.GDB || 'gdb',
+            externalConsole: false,
+            internalConsoleOptions: 'openOnSessionStart',
+            stopAtEntry: false
+        });
+        if (!started) {
+            vscode.window.showErrorMessage('mem: Could not start the shader debugger.');
+        }
+        // Debugging is handled here; stop the caller from invoking debugCpp,
+        // which reads launch.json and can run the application's build task.
+        return false;
     } catch (e) {
         await showBuildError(e);
         return false;
@@ -489,7 +521,22 @@ async function buildKernel(editor, source = editor.document.uri.fsPath) {
             objects.push(object);
         }
         await run(['-G', '-g', ...objects, '-o', output]);
-        return true;
+        const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+        const started = await vscode.debug.startDebugging(folder, {
+            name: `CUDA: Debug ${path.basename(filename)}`,
+            type: 'cuda-gdb',
+            request: 'launch',
+            program: output,
+            cwd: path.dirname(source),
+            debuggerPath: process.env.CUDA_GDB || '/usr/local/cuda/bin/cuda-gdb',
+            internalConsoleOptions: 'openOnSessionStart',
+            stopAtEntry: false
+        });
+        if (!started) {
+            vscode.window.showErrorMessage('mem: Could not start the CUDA debugger.');
+        }
+        // Debugging is handled here; skip the caller's launch.json configuration.
+        return false;
     } catch (e) {
         await showBuildError(e);
         return false;
