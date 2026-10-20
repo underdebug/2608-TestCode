@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "GDB: CPU volume shader",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/volume",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Build CPU volume shader",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "stopAtEntry": true,
+            "externalConsole": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "CUDA-GDB",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake",
+            "internalConsoleOptions": "openOnSessionStart"
+        },
+        {
+            "name": "GDB",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/test",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "CMake",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "externalConsole": false,
+            "internalConsoleOptions": "openOnSessionStart"
+        }
+    ]
+}

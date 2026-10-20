@@ -1,0 +1,66 @@
+{
+  "format_version": 1,
+  "captured_at_unix_seconds": 1792458349.3394504,
+  "vertex_shader": "shader/overlay.vert",
+  "fragment_shader": "shader/overlay.frag",
+  "topology": "line_list",
+  "matrix_order": "column_major",
+  "draws": [
+    {
+      "name": "axes",
+      "mode": 4,
+      "vertex_count": 30,
+      "instance_count": 1,
+      "first_vertex": 0,
+      "first_instance": 0,
+      "matrix": [
+        0.37366756796836853,
+        -0.14630068838596344,
+        0.0009547764784656465,
+        0.0,
+        0.0,
+        -0.24239569902420044,
+        -0.0032264627516269684,
+        0.0,
+        0.17424406111240387,
+        0.31374281644821167,
+        -0.0020475247874855995,
+        0.0,
+        0.0,
+        0.0,
+        0.4999750256538391,
+        1.0
+      ],
+      "viewport_width": 820,
+      "viewport_height": 800
+    },
+    {
+      "name": "rulers",
+      "mode": 3,
+      "vertex_count": 3652,
+      "instance_count": 1,
+      "first_vertex": 0,
+      "first_instance": 0,
+      "matrix": [
+        820.0,
+        800.0,
+        0.46599024534225464,
+        50.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "viewport_width": 820,
+      "viewport_height": 800
+    }
+  ]
+}

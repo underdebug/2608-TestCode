@@ -1,0 +1,72 @@
+
+python launch.json
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        }
+    ]
+}
+
+
+
+
+// async function getCurrentFunctionPath() {
+//     const editor = vscode.window.activeTextEditor;
+//     if (!editor)
+//         return '';
+
+//     const pos = editor.selection.active;
+
+//     const symbols = await vscode.commands.executeCommand(
+//         'vscode.executeDocumentSymbolProvider',
+//         editor.document.uri
+//     );
+
+//     let path = [];
+
+//     function find(symbols, currentPath = []) {
+//         for (const s of symbols || []) {
+//             if (!s.range.contains(pos))
+//                 continue;
+
+//             let nextPath = currentPath;
+
+//             if (
+//                 s.kind === vscode.SymbolKind.Function ||
+//                 s.kind === vscode.SymbolKind.Method ||
+//                 s.kind === vscode.SymbolKind.Constructor ||
+//                 s.kind === vscode.SymbolKind.Class ||
+//                 s.kind === vscode.SymbolKind.Namespace
+//             ) {
+//               nextPath = [
+//                   ...currentPath,
+//                   s.name.replace(/^.*\./, '').replace(/\(.*\)$/, '')
+//               ];
+//             }
+
+//             const childPath = find(s.children, nextPath);
+
+//             if (childPath.length)
+//                 return childPath;
+
+//             return nextPath;
+//         }
+
+//         return [];
+//     }
+
+//     path = find(symbols);
+
+//     // keep only last 1 layers
+//     path = path.slice(-1);
+
+//     const stack = path.join('.');
+//     return stack;
+// }
