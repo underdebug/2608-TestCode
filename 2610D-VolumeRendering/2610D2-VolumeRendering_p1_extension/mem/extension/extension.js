@@ -977,26 +977,28 @@ async function activate(context) {
     await registerShaderDefinitions(vscode, context);
     await applySettings();
 
-    const editor = vscode.window.activeTextEditor;
-
     const memCmd = vscode.commands.registerCommand('mem', async () => { // F8
-        if(editor) await editor.document.save();
+        const editor = vscode.window.activeTextEditor;
+        if (editor && !editor.document.isClosed && !await editor.document.save()) return;
         await cmdMem();
     });
 
     const debugCmd = vscode.commands.registerCommand('debug', async () => { // F6
-        if(editor) await editor.document.save();
+        const editor = vscode.window.activeTextEditor;
+        if (editor && !editor.document.isClosed && !await editor.document.save()) return;
         await cmdDebug();
     });
 
     const scriptCmd = vscode.commands.registerCommand('script', async () => { // Ctrl+F6
-        if(editor) await editor.document.save();
+        const editor = vscode.window.activeTextEditor;
+        if (editor && !editor.document.isClosed && !await editor.document.save()) return;
         if (!await vscode.workspace.saveAll()) return;
         await cmdScript();
     });
 
     const stopCmd = vscode.commands.registerCommand('stop', async () => { // Shift+F6
-        if(editor) await editor.document.save();
+        const editor = vscode.window.activeTextEditor;
+        if (editor && !editor.document.isClosed && !await editor.document.save()) return;
         await vscode.commands.executeCommand('workbench.action.debug.stop');
     });
 

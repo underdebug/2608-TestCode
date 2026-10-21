@@ -20,6 +20,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+LOG = 0 # 10/20 2026
+
 import gdb
 import subprocess
 import os
@@ -28,11 +30,10 @@ import numpy as np
 import inspect
 import math
 
-LOG = 1 # 10/15 2026
-
 np.set_printoptions(suppress=True)
 np.set_printoptions(linewidth=1000)
 np.set_printoptions(threshold=np.inf)
+np.set_printoptions(formatter={'float_kind': lambda x: f'{x:16.3f}'})
 
 if "__file__" in globals():
     # __file__ exists when Python is running code from a real .py file.
@@ -98,9 +99,6 @@ def cpu_memory(Addr, Type, Size):
     inferior = gdb.selected_inferior()
     raw = inferior.read_memory(Addr, byte_count)
     data = np.frombuffer(raw, dtype=TYPE_MAP[Type])
-
-    if Type in ['float', 'double']:
-        data = np.round(data, 3)
 
     data = data.reshape(Size)
     return data
@@ -257,6 +255,10 @@ def cpu_struct(para, Type=None, Size=None):
                 for member in ftype2.fields():
                     if member.name is not None:
                         results[member.name] = cpu_(para[member.name], None, None)
+                        # Union members alias the same storage; keep the first
+                        # name only (GLM uses x/r/s, y/g/t, and z/b/p).
+                        if ftype2.code == gdb.TYPE_CODE_UNION:
+                            break
             continue
         para2 = para[field.name]
 
@@ -274,6 +276,25 @@ def cpu_struct(para, Type=None, Size=None):
             results[field.name] = int(para2)
 
     return results
+
+def cpu_glm_matrix(para, Type=None, Size=None):
+    if Type is not None and Size is not None:
+        return cpu_memory(int(para.address), Type, Size).transpose()
+
+    ftype = para.type.strip_typedefs().unqualified()
+    columns = int(ftype.template_argument(0))
+    rows = int(ftype.template_argument(1))
+    # Read each column separately so aligned GLM vectors may include padding.
+    data = np.asarray([
+        [cpu_(para['value'][column][component])
+         for component in 'xyzw'[:rows]]
+        for column in range(columns)
+    ]).transpose()
+    if Size is not None:
+        shape = tuple(int(n) for n in normalize_size(data.shape, Size))
+        return data.reshape(-1)[:math.prod(shape)].reshape(shape)
+    return data
+
 
 def cpu_Eigen_Matrix(para, Type, Size):
     ftype = para.type.strip_typedefs()
@@ -359,22 +380,30 @@ def cpu_(para, Type=None, Size=None):
         return cpu_array(para, Type, Size)
 
     elif ftype.code in {gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION}: # 3, 4
-        if str(ftype).startswith('std::vector'):
+        # Match only the outer type, excluding template arguments.
+        type_name = str(ftype).split('<', 1)[0].strip()
+        if type_name == 'std::vector':
             return cpu_stdvector(para, Type, Size)
 
-        elif str(ftype).startswith('std::array'):
+        elif type_name == 'std::array':
             return cpu_stdarray(para, Type, Size)
 
-        elif str(ftype).startswith('std::pair'):
+        elif type_name == 'std::pair':
             return cpu_stdpair(para)
 
-        elif '::basic_string' in str(ftype): # std::string
+        elif type_name in {'std::filesystem::path', 'std::filesystem::__cxx11::path'}:
+            return cpu_(para['_M_pathname'])
+
+        elif type_name in {'std::basic_string', 'std::__cxx11::basic_string'}:
             n = int(para['_M_string_length'])
             s = para['_M_dataplus']['_M_p'].string(length=n)
             return np.str_(s)  
 
-        elif 'Eigen::Matrix' in str(ftype): # Eigen::Matrix
+        elif type_name == 'Eigen::Matrix':
             return cpu_Eigen_Matrix(para, Type, Size)
+
+        elif type_name == 'glm::mat':
+            return cpu_glm_matrix(para, Type, Size)
 
         else:
             return cpu_struct(para, Type, Size)
@@ -404,11 +433,11 @@ def cpu_(para, Type=None, Size=None):
 
     elif ftype.code == gdb.TYPE_CODE_FLT: # 9
         if ftype.sizeof == 4:
-            return round(np.float32(para), 3)
+            return np.float32(para)
         elif ftype.sizeof == 8:
-            return round(np.float64(para), 3)
+            return np.float64(para)
         else:
-            return round(np.longdouble(para), 3)
+            return np.longdouble(para)
 
     elif ftype.code == gdb.TYPE_CODE_BOOL: # 21
         return np.bool_(int(para))
@@ -520,11 +549,11 @@ def gpu_(para, Type=None, Size=None):
     elif ftype.code == gdb.TYPE_CODE_FLT: # 9
         if LOG: PRINT('ftype.code', gdb.TYPE_CODE_INT, 'ftype.sizeof', ftype.sizeof)
         if ftype.sizeof == 4:
-            return round(np.float32(para), 3)
+            return np.float32(para)
         elif ftype.sizeof == 8:
-            return round(np.float64(para), 3)
+            return np.float64(para)
         else:
-            return round(np.longdouble(para), 3)
+            return np.longdouble(para)
 
     else:
         if LOG: PRINT(f'{name}({ftype.code}): fail')

@@ -102,11 +102,12 @@ vec3 shadeVolume(vec3 tissue, vec3 position, vec3 toEye, vec3 toLight)
 
 void main()
 {
+    float inverseMatrixCol0Row1 = view.inverseMatrix[0][1]; // 0 col, 1 row
+
     // 当前使用正交投影：反变换近、远裁剪面上的点，构造采样光线。
     vec3 origin = (view.inverseMatrix * vec4(ndc, 0, 1)).xyz;
     vec3 end = (view.inverseMatrix * vec4(ndc, 1, 1)).xyz;
     vec3 direction = normalize(end - origin);
-
 
     // 光源固定在观察者右上方；相机旋转后仍在体数据空间计算光照。
     vec3 cameraRight = normalize(view.inverseMatrix[0].xyz);
