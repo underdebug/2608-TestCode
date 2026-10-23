@@ -20,105 +20,171 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// 10/22 2026
+
 const vscode = require('vscode');
+const jsonc = require('jsonc-parser');
 
-async function disableCollapseIdenticalLines() {
-    const cfg = vscode.workspace.getConfiguration('debug');
-
-    await cfg.update(
-        'console.collapseIdenticalLines',
-        false,
-        vscode.ConfigurationTarget.Global
-    );
+async function openExistingDocument(uri) {
+    try {
+        await vscode.workspace.fs.stat(uri);
+    } catch (error) {
+        if (error.code === 'FileNotFound') return undefined;
+        throw error;
+    }
+    return vscode.workspace.openTextDocument(uri);
 }
 
 async function setLaunchJson() {
-    const cfg = vscode.workspace.getConfiguration('launch');
+    if (!vscode.workspace.workspaceFolders?.length) return;
 
-    const configurations = cfg.get('configurations', []);
-
-    let changed = false;
-
-    for (const config of configurations) {
-        if (config.type === 'debugpy' && config.console !== 'internalConsole') {
-            config.console = 'internalConsole';
-            changed = true;
-        }
-        if (config.type === 'debugpy' && config.redirectOutput !== true) {
-            config.redirectOutput = true;
-            changed = true;
-        }
-        if (config.internalConsoleOptions !== 'openOnSessionStart') {
-            config.internalConsoleOptions = 'openOnSessionStart';
-            changed = true;
-        }
+    const directory = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, '.vscode');
+    const uri = vscode.Uri.joinPath(directory, 'launch.json');
+    const document = await openExistingDocument(uri);
+    const original = document ? document.getText() : '{}\n';
+    const errors = [];
+    const current = jsonc.parse(original.trim() ? original : '{}', errors, { allowTrailingComma: true });
+    if (errors.length || !current || typeof current !== 'object' || Array.isArray(current)) {
+        throw new Error('Cannot update launch.json: expected a valid JSON object.');
     }
 
-    if (changed) {
-        await cfg.update(
-            'configurations',
-            configurations,
-            vscode.ConfigurationTarget.Workspace
+    if (current.configurations !== undefined && !Array.isArray(current.configurations)) {
+        throw new Error('Cannot update launch.json: configurations must be an array.');
+    }
+
+    const settings = {
+        // console: 'internalConsole',
+        // redirectOutput: true,
+        internalConsoleOptions: 'openOnSessionStart'
+    };
+
+    let updated = original;
+    const configurations = current.configurations || [];
+    if (!configurations.length) {
+        configurations.push(
+            {
+                name: 'CUDA-GDB',
+                type: 'cuda-gdb',
+                request: 'launch',
+                program: '${workspaceFolder}/build/test',
+                cwd: '${workspaceFolder}',
+                preLaunchTask: 'CMake',
+                ...settings
+            },
+            {
+                name: 'GDB',
+                type: 'cppdbg',
+                request: 'launch',
+                program: '${workspaceFolder}/build/test',
+                cwd: '${workspaceFolder}',
+                preLaunchTask: 'CMake',
+                MIMode: 'gdb',
+                miDebuggerPath: 'gdb',
+                externalConsole: false,
+                ...settings
+            }
         );
+        for (const [key, value] of Object.entries({
+            version: current.version ?? '0.2.0', configurations
+        })) {
+            updated = jsonc.applyEdits(updated, jsonc.modify(updated, [key], value, {
+                formattingOptions: { insertSpaces: true, tabSize: 4,
+                    eol: original.includes('\r\n') ? '\r\n' : '\n' }
+            }));
+        }
+    }
+    for (const [index, config] of configurations.entries()) {
+        if (!config || typeof config !== 'object' || Array.isArray(config)) {
+            throw new Error('Cannot update launch.json: each configuration must be an object.');
+        }
+        for (const [key, value] of Object.entries(settings)) {
+            if (JSON.stringify(config[key]) !== JSON.stringify(value)) {
+                updated = jsonc.applyEdits(updated, jsonc.modify(
+                    updated, ['configurations', index, key], value, {
+                        formattingOptions: { insertSpaces: true, tabSize: 4,
+                            eol: original.includes('\r\n') ? '\r\n' : '\n' }
+                    }
+                ));
+            }
+        }
+    }
+    if (document && updated === original) return;
+
+    if (document) {
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(uri, new vscode.Range(document.positionAt(0),
+            document.positionAt(original.length)), updated);
+        if (!await vscode.workspace.applyEdit(edit) || !await document.save()) {
+            throw new Error('Could not save launch.json.');
+        }
+    } else {
+        await vscode.workspace.fs.createDirectory(directory);
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(updated, 'utf8'));
     }
 }
 
 async function setSettingJson() {
     if (!vscode.workspace.workspaceFolders?.length) return;
 
-    const cfg = vscode.workspace.getConfiguration();
-    const target = vscode.ConfigurationTarget.Workspace;
-    const shaderAssociations = Object.fromEntries(
-        ['vert', 'frag', 'comp', 'glsl']
-            .map(extension => [`*.${extension}`, 'cpp'])
-    );
-    const associations = cfg.get('files.associations', {});
-    if (Object.entries(shaderAssociations).some(([key, value]) => associations[key] !== value)) {
-        await cfg.update('files.associations', {
-            ...associations,
-            ...shaderAssociations
-        }, target);
+    const directory = vscode.Uri.joinPath(vscode.workspace.workspaceFolders[0].uri, '.vscode');
+    const uri = vscode.Uri.joinPath(directory, 'settings.json');
+    const document = await openExistingDocument(uri);
+    const original = document ? document.getText() : '{}\n';
+    const errors = [];
+    const current = jsonc.parse(original.trim() ? original : '{}', errors, { allowTrailingComma: true });
+    if (errors.length || !current || typeof current !== 'object' || Array.isArray(current)) {
+        throw new Error('Cannot update settings.json: expected a valid JSON object.');
     }
 
     const settings = {
-        // GLSL uses C++ highlighting, but its syntax is not valid C++.
-        'C_Cpp.errorSquiggles': 'disabled',
-        'debug.console.collapseIdenticalLines': false,
-        'debug.allowBreakpointsEverywhere': true,
-        'debug.openDebug': 'neverOpen',
-        'editor.tabSize': 4,
-        'editor.insertSpaces': true,
-        'editor.detectIndentation': false
-    };
-
-    for (const [key, value] of Object.entries(settings)) {
-        if (cfg.inspect(key)?.workspaceValue !== value) {
-            await cfg.update(key, value, target);
+        "chat.disableAIFeatures": false,
+        "files.associations": {
+            "*.vert": "cpp",
+            "*.frag": "cpp",
+            "*.comp": "cpp",
+            "*.glsl": "cpp"
+        },
+        "C_Cpp.errorSquiggles": "disabled",
+        "debug.console.collapseIdenticalLines": false,
+        "debug.allowBreakpointsEverywhere": true,
+        "debug.openDebug": "neverOpen",
+        "editor.tabSize": 4,
+        "editor.insertSpaces": true,
+        "editor.detectIndentation": false,
+        "[javascript][json]": {
+            "editor.tabSize": 4,
+            "editor.insertSpaces": true,
+            "editor.detectIndentation": false
         }
     }
-
-    const indentationSettings = {
-        'editor.tabSize': 4,
-        'editor.insertSpaces': true,
-        'editor.detectIndentation': false
-    };
     
-    const key = '[javascript][json]';
-    const languageSettings = cfg.inspect(key)?.workspaceValue || {};
-    if (Object.entries(indentationSettings).some(([setting, value]) => languageSettings[setting] !== value)) {
-        await cfg.update(key, {
-            ...languageSettings,
-            ...indentationSettings
-        }, target);
+    let updated = original;
+    for (const [key, value] of Object.entries(settings)) {
+        if (JSON.stringify(current[key]) !== JSON.stringify(value)) {
+            updated = jsonc.applyEdits(updated, jsonc.modify(updated, [key], value, {
+                formattingOptions: { insertSpaces: true, tabSize: 4,
+                    eol: original.includes('\r\n') ? '\r\n' : '\n' }
+            }));
+        }
+    }
+    if (updated === original) return;
+
+    if (document) {
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(uri, new vscode.Range(document.positionAt(0),
+            document.positionAt(original.length)), updated);
+        if (!await vscode.workspace.applyEdit(edit) || !await document.save()) {
+            throw new Error('Could not save settings.json.');
+        }
+    } else {
+        await vscode.workspace.fs.createDirectory(directory);
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(updated, 'utf8'));
     }
 }
 
-async function applySettings() {
-    await disableCollapseIdenticalLines();
-
+async function vscodeSettings() {
     await setLaunchJson();
-
     await setSettingJson();
 }
 
-module.exports = { applySettings };
+module.exports = { vscodeSettings };

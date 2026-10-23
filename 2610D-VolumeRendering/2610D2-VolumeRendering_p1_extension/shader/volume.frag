@@ -32,7 +32,15 @@ float voxel(ivec3 p)
 // 将毫米坐标映射到体素中心坐标，再对周围八个体素做三线性插值。
 float sampleVolume(vec3 position)
 {
+    // 0   * 512  - 0.5 = -0.5
+    // 0.5 * 512  - 0.5 = 255.5
+    // 1   * 512  - 0.5 = 511.5
+
+    // vec3 halfdimensions = vec3(view.dimensions.xyz) / 2 - 0.5;
+    // vec3 p = (position / (2.0 * view.halfSize.xyz) * vec3(view.dimensions.xyz)) + halfdimensions
+
     vec3 p = (position / (2.0 * view.halfSize.xyz) + 0.5) * vec3(view.dimensions.xyz) - 0.5;
+
     ivec3 i = ivec3(floor(p));
     vec3 f = fract(p);
 

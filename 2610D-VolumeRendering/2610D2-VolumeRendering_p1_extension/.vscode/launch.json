@@ -8,7 +8,8 @@
             "program": "${workspaceFolder}/build/test",
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "CMake",
-            "internalConsoleOptions": "openOnSessionStart"
+            "internalConsoleOptions": "openOnSessionStart",
+
         },
         {
             "name": "GDB",
@@ -19,8 +20,7 @@
             "preLaunchTask": "CMake",
             "MIMode": "gdb",
             "miDebuggerPath": "gdb",
-            "externalConsole": false,
-            "internalConsoleOptions": "openOnSessionStart"
+            "internalConsoleOptions": "openOnSessionStart",
         }
     ]
 }

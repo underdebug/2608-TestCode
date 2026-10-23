@@ -20,16 +20,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// 10/22 2026
+LOG = 0; 
+
 const vscode = require('vscode');
 const { registerShaderDefinitions } = require('./definitions');
-const { applySettings } = require('./settings');
+const { vscodeSettings } = require('./settings');
 const path = require('path');
 const fs = require('fs');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
-
-LOG = 0; // 10/9 2026
 
 function log(...args) {
     const stack = new Error().stack;
@@ -47,8 +48,25 @@ async function printStack(session) {
 
     let stack;
     try {
-        LOG && log('printStack', line, "getStackFunction(session)");
-        stack = await getStackFunction(session);
+        LOG && log('printStack', line);
+        const item = vscode.debug.activeStackItem;
+        let threadId = item && item.session === session ? item.threadId : undefined;
+        if (threadId === undefined) {
+            const response = await session.customRequest('threads');
+            threadId = response.threads && response.threads[0] && response.threads[0].id;
+        }
+        if (threadId === undefined) {
+            log("printStack, threadId === undefined, Error");
+        } else {
+            const response = await session.customRequest('stackTrace', {
+                threadId,
+                startFrame: 0,
+                levels: 4
+            });
+            stack = (response.stackFrames || []).slice(0, 4)
+                .map(frame => frame.name.replace(/\(.*$/, '').trim())
+                .join(' <-- ');
+        }
         vscode.debug.activeDebugConsole.appendLine(`${line} ${stack}`);        
     } catch (e) {
         log('Error printStack', line, stack, e.message);
@@ -74,27 +92,6 @@ async function getFrameId(session) {
     } catch (e) {
         return undefined;
     }
-}
-
-async function getStackFunction(session) {
-    const item = vscode.debug.activeStackItem;
-    let threadId = item && item.session === session ? item.threadId : undefined;
-    if (threadId === undefined) {
-        const response = await session.customRequest('threads');
-        threadId = response.threads && response.threads[0] && response.threads[0].id;
-    }
-    if (threadId === undefined) {
-        log("getStackFunction, threadId === undefined, Error")
-        return;
-    }
-    const response = await session.customRequest('stackTrace', {
-        threadId,
-        startFrame: 0,
-        levels: 4
-    });
-    return (response.stackFrames || []).slice(0, 4)
-        .map(frame => frame.name.replace(/\(.*$/, '').trim())
-        .join(' <- ');
 }
 
 async function isOpeningProject(context) {
@@ -177,6 +174,27 @@ async function runPython(editor) {
     }
 }
 
+function tokenText() {
+    const editor = vscode.window.activeTextEditor;
+    const pos = editor.selection.active;
+
+    const range = editor.document.getWordRangeAtPosition(pos);
+    LOG && log('memCppCpp', 'pos', pos, 'range', range);
+    if (!range)
+        return ""
+
+    let text = editor.document.getText(range);
+    let left = editor.document.lineAt(range.start.line).text.slice(0, range.start.character);
+    let match;
+    while ((match = left.match(/([A-Za-z_][A-Za-z0-9_]*)\s*(\.|->)\s*$/))) {
+        text = match[1] + match[2] + text;
+        left = left.slice(0, match.index);
+    }
+
+    LOG && log('tokenText', pos.line + 1, text);
+    return text;
+}
+
 async function memCppCpp(session) {
     const editor = vscode.window.activeTextEditor;
     const line = editor.selection.active.line + 1;
@@ -184,14 +202,9 @@ async function memCppCpp(session) {
 
     let text;
     if (editor.selection.isEmpty) { // TOKEN
-        const pos = editor.selection.active;
-        const range = editor.document.getWordRangeAtPosition(pos);
-        LOG && log('memCppCpp', 'pos', pos, 'range', range);
-        if (!range)
-            return
-
-        text = editor.document.getText(range);
-        LOG && log('memCppCpp', line, text);
+        text = tokenText();
+        if (!text)
+            return;
     } else { // SELECTION
         text = editor.document.getText(editor.selection);
     }
@@ -970,12 +983,12 @@ async function cmdScript() {
 async function activate(context) {
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    if (await isOpeningProject(context)) {
-        return;
-    }
+    // if (await isOpeningProject(context)) {
+    //     return;
+    // }
 
     await registerShaderDefinitions(vscode, context);
-    await applySettings();
+    await vscodeSettings();
 
     const memCmd = vscode.commands.registerCommand('mem', async () => { // F8
         const editor = vscode.window.activeTextEditor;
