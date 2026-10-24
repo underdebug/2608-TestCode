@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-// 10/22 2026
+// 10/24 2026
 LOG = 0; 
 
 const vscode = require('vscode');
@@ -195,36 +195,10 @@ function tokenText() {
     return text;
 }
 
-async function memCppCpp(session) {
-    const editor = vscode.window.activeTextEditor;
-    const line = editor.selection.active.line + 1;
+async function requestExpr(expr) {
+    const session = vscode.debug.activeDebugSession;
     const frameId = await getFrameId(session);
 
-    let text;
-    if (editor.selection.isEmpty) { // TOKEN
-        text = tokenText();
-        if (!text)
-            return;
-    } else { // SELECTION
-        text = editor.document.getText(editor.selection);
-    }
-
-    let expression;
-    const isSingleWord = /^\S+$/.test(text.trim());
-
-    if(isSingleWord){ // C++ Tocken
-        // Bound console output without truncating the data returned by mem().
-        // Large volumes contain millions of packed voxels.
-        expression = `value = mem(${JSON.stringify(text)})\nwith np.printoptions(threshold=128, edgeitems=8):\n    print(value, ${JSON.stringify('<= ' + text)}, list(value.shape) if hasattr(value, 'shape') and value.shape else '', '|${line}|')`;
-    }
-    else{ // Python code
-        const lines = text.split(/\r?\n/).map(line => line.replace(/\s+$/, ''));
-        expression = lines.join(' \n');
-    }
-
-    expression = JSON.stringify(expression);
-
-    const expr = `-exec python exec(${expression})`;
     try {
         const response = await session.customRequest('evaluate', {
             expression: expr,
@@ -235,7 +209,79 @@ async function memCppCpp(session) {
             vscode.debug.activeDebugConsole.appendLine(response.result);
         }
     } catch (e) {
-        log('Error memCppCpp', expr, e.message);
+        log('Error requestExpr', expr, e.message);
+    }
+}
+
+async function runExec(text){
+    text = text.trim();
+    const match = text.match(/-exec\b/);
+    if (!match)
+        return false;
+
+    let expr = text.slice(match.index).trim();
+    if (expr.endsWith('.py')) {
+        const source = expr.match(/^(-exec\s+source\s+)(.+\.py)$/);
+        if (source) {
+            const editor = vscode.window.activeTextEditor;
+            const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+            const projectPath = folder ? folder.uri.fsPath
+                : path.dirname(editor.document.uri.fsPath);
+            let sourcePath = source[2].trim();
+            const projectSource = path.join(projectPath, sourcePath.replace(/^\/+/, ''));
+            if (!path.isAbsolute(sourcePath) ||
+                (!fs.existsSync(sourcePath) && fs.existsSync(projectSource))) {
+                sourcePath = projectSource;
+            }
+            expr = `${source[1]}${sourcePath.replace(/\\/g, '/')}`;
+        }
+    }
+
+    await requestExpr(expr);
+    return true;
+    
+}
+
+async function memCppCpp(session) {
+    const editor = vscode.window.activeTextEditor;
+    const line = editor.selection.active.line + 1;
+
+    let text;
+    if (editor.selection.isEmpty) { 
+        text = editor.document.lineAt(editor.selection.active.line).text;
+        if(!await runExec(text)){  // -EXEC NODELETE         
+            text = tokenText();
+            if (text){ // TOKEN NODELETE
+                const expression = `value = mem(${JSON.stringify(text)})\nwith np.printoptions(threshold=128, edgeitems=8):\n    print(value, ${JSON.stringify('<= ' + text)}, list(value.shape) if hasattr(value, 'shape') and value.shape else '', '|${line}|')`;
+                const expr = `-exec python exec(${JSON.stringify(expression)})`;
+                await requestExpr(expr);
+            }
+        }
+    } else { // SELECTION
+        text = editor.document.getText(editor.selection);
+        const isParameter = /^\S+$/.test(text.trim());
+        
+        if(isParameter){
+            const expression = `value = mem(${JSON.stringify(text)})\nwith np.printoptions(threshold=128, edgeitems=8):\n    print(value, ${JSON.stringify('<= ' + text)}, list(value.shape) if hasattr(value, 'shape') and value.shape else '', '|${line}|')`;
+            const expr = `-exec python exec(${JSON.stringify(expression)})`;
+            await requestExpr(expr);
+        }
+        else{
+            const lines = text.split(/\r?\n/).map(line => line.replace(/\s+$/, ''));
+
+            const valid_lines = [];
+            for (const line of lines.map(line => line.trim())){
+                if(line !== '' && !await runExec(line)){ // -EXEC NODELETE  
+                    valid_lines.push(line);
+                }
+            }
+            
+            if(valid_lines.length > 0){
+                let expression = valid_lines.join(" \n");
+                const expr = `-exec python exec(${expression})`;
+                requestExpr(expr);
+            }
+        }
     }
 }
 
@@ -245,10 +291,10 @@ async function memCppPython(session) {
     const frameId = await getFrameId(session);
 
     let text;
-    if (editor.selection.isEmpty) { // ALL TEXT
+    if (editor.selection.isEmpty) { // ALL TEXT NODELETE
         text = editor.document.getText(); 
         LOG && log('memCppPython', 'editor.document.getText()', text);
-    } else { // SELECTION
+    } else { // SELECTION NODELETE
         text = editor.document.getText(editor.selection);
         LOG && log('memCppPython', 'editor.document.getText(editor.selection)', text);
     }
@@ -987,13 +1033,14 @@ async function cmdScript() {
 }
 
 async function activate(context) {
-    try {
-        if (await openingProject(context)) {
-            return;
-        }
-    } catch (error) {
-        console.error('mem: Error opening project', error);
-    }
+    // NODELETE
+    // try {
+    //     if (await openingProject(context)) {
+    //         return;
+    //     }
+    // } catch (error) {
+    //     console.error('mem: Error opening project', error);
+    // }
 
     try {
         registerShaderDefinitions(vscode, context);
