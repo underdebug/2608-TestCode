@@ -17,39 +17,39 @@ extern "C" __global__ void FeldKampBackProject_kernel(
         const float fRadiusPower,const float fMidSlice,
         int nCouchMoveDirection, cudaTextureObject_t texFeldKampBckProDataIn)
 {
-	const  int ix = blockDim.x * blockIdx.x + threadIdx.x;
-	const  int iy = blockDim.y * blockIdx.y + threadIdx.y;
+	const  int ix = blockDim.x * blockIdx.x + threadIdx.x; // 0
+	const  int iy = blockDim.y * blockIdx.y + threadIdx.y; // 0
 
     if (ix >= nImgRowSize || iy >= nImgRowSize) return;
 
-	float fX = g_fFeldKampPixlX_d[ix];
-	float fY = g_fFeldKampPixlY_d[iy];
+	float fX = g_fFeldKampPixlX_d[ix]; // -63.5
+	float fY = g_fFeldKampPixlY_d[iy]; // -63.5
 	
-	for(int n = 0;n < nFeldKampProjectNum; n++)
+	for(int n = 0;n < nFeldKampProjectNum; n++) // 3 image
 	{
 		int nBase;
-		if (1 == nCouchMoveDirection)
+		if (1 == nCouchMoveDirection) // 0 -> 2
 		{
 			nBase = n;
 		}
 		else
 		{
-			nBase = nFeldKampProjectNum - 1 - n;
+			nBase = nFeldKampProjectNum - 1 - n; // 2 -> 0
 		}
 
-		float fZ = g_fFeldKampZPos_d[n];
-		int nStartPixel = g_nFeldKampStatPixl_d[n];
-		int nEndPixel   = g_nFeldKampEndPixl_d[n];
+		float fZ = g_fFeldKampZPos_d[n]; // n = 0, fZ = -3, [-3 0 3]
+		int nStartPixel = g_nFeldKampStatPixl_d[n]; // 0 ~
+		int nEndPixel   = g_nFeldKampEndPixl_d[n];  // 127
 
         // -exec source /mem/print_g_nFeldKampStatPixl_d.py
 
-		float fTemp = fRadius * fZ / fSliceThickness;
+		float fTemp = fRadius * fZ / fSliceThickness; // 10000 * -3 / 1.0
 		if(ix <= nEndPixel && ix >= nStartPixel)
 		{
 			if(iy <= nEndPixel && iy >= nStartPixel)
 			{			
 				float fData = 0;
-				for(int k = 0; k < nViewBackPro; k++)
+				for(int k = 0; k < nViewBackPro; k++) // 180, 360/2
 				{
                     // -exec cuda kernel block thread
                     // kernel 0, block (0,0,0), thread (0,2,0)
@@ -65,10 +65,11 @@ extern "C" __global__ void FeldKampBackProject_kernel(
 
 					float fSinTheta = g_fFeldKampSinTbl_d[k].x;
 					float fCosTheta = g_fFeldKampSinTbl_d[k].y;
+                    // -exec source /mem/plot_g_fFeldKampSinTbl_d.py
 
-					float fChannelPos = fX * fCosTheta - fY * fSinTheta;
+					float fChannelPos = fX * fCosTheta - fY * fSinTheta; // channel position -63.5
 					float fSqrtRT = sqrtf(fRadiusPower - fChannelPos * fChannelPos);
-					fChannelPos = fChannelPos * fDetParT + fMidChannelPar;
+					fChannelPos = fChannelPos * fDetParT + fMidChannelPar; // fMidChannelPar 96, 192
 					float fV = -fY * fCosTheta -  fX * fSinTheta;
 					float fDisTemp = fSqrtRT + fV;
 					float fSlicePos = fTemp / fDisTemp + fMidSlice;
