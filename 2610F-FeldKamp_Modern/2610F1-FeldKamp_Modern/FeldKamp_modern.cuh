@@ -67,12 +67,16 @@ extern "C" __global__ void FeldKampBackProject_kernel(
 					float fCosTheta = g_fFeldKampSinTbl_d[k].y;
                     // -exec source /mem/plot_g_fFeldKampSinTbl_d.py
 
+                    float theta = atan2f(fSinTheta, fCosTheta) * 180.0f / 3.1415926f;
 					float fChannelPos = fX * fCosTheta - fY * fSinTheta; // channel position -63.5
-					float fV = -fY * fCosTheta -  fX * fSinTheta;
-                    
+                    float fV1 = fY * fCosTheta + fX * fSinTheta;
+                    float fV = -fV1;
+
+                    // -exec source /mem/plot_view_position.py
+                
+                	fChannelPos = fChannelPos * fDetParT + fMidChannelPar; // fMidChannelPar 96, 192
+				
                     float fSqrtRT = sqrtf(fRadiusPower - fChannelPos * fChannelPos);
-					fChannelPos = fChannelPos * fDetParT + fMidChannelPar; // fMidChannelPar 96, 192
-					
 					float fDisTemp = fSqrtRT + fV;
 					float fSlicePos = fTemp / fDisTemp + fMidSlice;
 
