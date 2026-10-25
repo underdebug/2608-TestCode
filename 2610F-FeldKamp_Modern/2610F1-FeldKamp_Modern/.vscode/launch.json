@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "CUDA-GDB",
+            "type": "cuda-gdb",
+            "request": "launch",
+            "debuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "preLaunchTask": "CMake",
+            "program": "${workspaceFolder}/build/test",
+            "cwd": "${workspaceFolder}",
+            "internalConsoleOptions": "openOnSessionStart",
+        },
+        {
+            "name": "GDB",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/feldkamp_cpu",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "preLaunchTask": "CMake",
+            "miDebuggerPath": "gdb",
+            "internalConsoleOptions": "openOnSessionStart",
+        }
+    ]
+}
