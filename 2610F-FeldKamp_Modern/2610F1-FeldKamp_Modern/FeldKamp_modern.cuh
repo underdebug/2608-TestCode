@@ -75,10 +75,15 @@ extern "C" __global__ void FeldKampBackProject_kernel(
                     // -exec source /mem/plot_view_position.py
                 
                 	fChannelPos = fChannelPos * fDetParT + fMidChannelPar; // fMidChannelPar 96, 192
-				
                     float fSqrtRT = sqrtf(fRadiusPower - fChannelPos * fChannelPos);
+
+                    //float fSqrtRT = fRadius - 200;
+
 					float fDisTemp = fSqrtRT + fV;
-					float fSlicePos = fTemp / fDisTemp + fMidSlice;
+					float fSlicePos = fTemp / fDisTemp + fMidSlice;                   
+
+                    float fSliceLen2 = fRadius * fZ / fDisTemp;
+                    float fSlicePos2 = fSliceLen2 / fSliceThickness + fMidSlice;
 
 					float fView = k + 0.5f;
 					fData += tex3D<float>(texFeldKampBckProDataIn,fChannelPos, fSlicePos,fView);
